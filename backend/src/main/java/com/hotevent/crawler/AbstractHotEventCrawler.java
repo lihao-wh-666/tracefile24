@@ -2,6 +2,7 @@ package com.hotevent.crawler;
 
 import cn.hutool.http.HttpRequest;
 import cn.hutool.http.HttpResponse;
+import com.hotevent.entity.HotEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -53,7 +54,7 @@ public abstract class AbstractHotEventCrawler implements HotEventCrawler {
         event.setSource(getSourceName());
         event.setHotValue(hotValue);
         event.setHotRank(rank);
-        event.setHot(true);
+        event.setIsHot(true);
         event.setIsRising(random.nextBoolean());
         event.setRisingRate(random.nextDouble() * 100);
         event.setCrawlTime(LocalDateTime.now());

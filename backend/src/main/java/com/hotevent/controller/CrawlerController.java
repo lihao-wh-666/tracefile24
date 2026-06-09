@@ -10,14 +10,13 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/crawler")
-@CrossOrigin(origins = "*")
 public class CrawlerController {
 
     @Autowired
     private CrawlerService crawlerService;
 
     @PostMapping("/crawl-all")
-    public Result<Void> crawlAllSources() {
+    public Result<String> crawlAllSources() {
         try {
             crawlerService.crawlAllSources();
             return Result.success("抓取任务已启动");

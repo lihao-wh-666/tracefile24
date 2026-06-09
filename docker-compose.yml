@@ -6,13 +6,13 @@ services:
     container_name: hot-event-mysql
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:root123456}
-      MYSQL_DATABASE: ${DB_NAME:hot_event_db}
-      MYSQL_USER: ${DB_USERNAME:hotevent}
-      MYSQL_PASSWORD: ${DB_PASSWORD:hotevent123}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root123456}
+      MYSQL_DATABASE: ${DB_NAME:-hot_event_db}
+      MYSQL_USER: ${DB_USERNAME:-hotevent}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-hotevent123}
       TZ: Asia/Shanghai
     ports:
-      - "${DB_PORT:3306}:3306"
+      - "${DB_PORT:-3307}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -21,7 +21,7 @@ services:
       - --collation-server=utf8mb4_unicode_ci
       - --default-authentication-plugin=mysql_native_password
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:root123456}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-root123456}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -40,12 +40,12 @@ services:
     environment:
       DB_HOST: mysql
       DB_PORT: 3306
-      DB_NAME: ${DB_NAME:hot_event_db}
-      DB_USERNAME: ${DB_USERNAME:hotevent}
-      DB_PASSWORD: ${DB_PASSWORD:hotevent123}
+      DB_NAME: ${DB_NAME:-hot_event_db}
+      DB_USERNAME: ${DB_USERNAME:-hotevent}
+      DB_PASSWORD: ${DB_PASSWORD:-hotevent123}
       TZ: Asia/Shanghai
     ports:
-      - "${BACKEND_PORT:8080}:8080"
+      - "${BACKEND_PORT:-9090}:9090"
     volumes:
       - ./backend/logs:/app/logs
     networks:
@@ -60,7 +60,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "${FRONTEND_PORT:80}:80"
+      - "${FRONTEND_PORT:-9080}:9080"
     networks:
       - hot-event-network
 
