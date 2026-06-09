@@ -1,6 +1,13 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 
 const routes = [
+  {
+    path: '/login',
+    name: 'Login',
+    component: () => import('@/views/Login.vue'),
+    meta: { title: '登录', public: true }
+  },
   {
     path: '/',
     name: 'Dashboard',
@@ -24,6 +31,12 @@ const routes = [
     name: 'CrawlRecords',
     component: () => import('@/views/CrawlRecords.vue'),
     meta: { title: '抓取记录' }
+  },
+  {
+    path: '/users',
+    name: 'Users',
+    component: () => import('@/views/Users.vue'),
+    meta: { title: '用户管理', requireAdmin: true }
   }
 ]
 
@@ -33,7 +46,28 @@ const router = createRouter({
 })
 
 router.beforeEach((to, from, next) => {
+  const userStore = useUserStore()
   document.title = to.meta.title ? `${to.meta.title} - 热点事件检测系统` : '热点事件检测系统'
+
+  if (to.meta.public) {
+    if (userStore.isLoggedIn && to.path === '/login') {
+      next('/')
+    } else {
+      next()
+    }
+    return
+  }
+
+  if (!userStore.isLoggedIn) {
+    next('/login')
+    return
+  }
+
+  if (to.meta.requireAdmin && !userStore.isAdmin) {
+    next('/')
+    return
+  }
+
   next()
 })
 

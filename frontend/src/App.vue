@@ -1,6 +1,7 @@
 <template>
   <div id="app">
-    <el-container class="layout-container">
+    <router-view v-if="isLoginPage" />
+    <el-container v-else class="layout-container">
       <el-header class="layout-header">
         <div class="header-content">
           <div class="logo">
@@ -28,13 +29,43 @@
                 <el-icon><Refresh /></el-icon>
                 <span>抓取记录</span>
               </el-menu-item>
+              <el-menu-item v-if="userStore.isAdmin" index="/users">
+                <el-icon><User /></el-icon>
+                <span>用户管理</span>
+              </el-menu-item>
             </el-menu>
           </div>
           <div class="header-right">
-            <el-button type="primary" @click="handleCrawlAll">
+            <el-button type="primary" @click="handleCrawlAll" :loading="loading">
               <el-icon><RefreshRight /></el-icon>
               <span>立即抓取</span>
             </el-button>
+            <el-dropdown>
+              <div class="user-info">
+                <el-avatar :size="32" :icon="UserFilled" />
+                <span class="username">{{ userStore.username }}</span>
+                <el-tag v-if="userStore.isAdmin" type="danger" size="small" effect="dark">
+                  管理员
+                </el-tag>
+                <el-icon><ArrowDown /></el-icon>
+              </div>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item disabled>
+                    <el-icon><User /></el-icon>
+                    {{ userStore.user?.username }}
+                  </el-dropdown-item>
+                  <el-dropdown-item disabled>
+                    <el-icon><Message /></el-icon>
+                    {{ userStore.user?.email || '未设置邮箱' }}
+                  </el-dropdown-item>
+                  <el-dropdown-item divided @click="handleLogout">
+                    <el-icon><SwitchButton /></el-icon>
+                    退出登录
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
         </div>
       </el-header>
@@ -53,13 +84,17 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { UserFilled, ArrowDown, SwitchButton } from '@element-plus/icons-vue'
 import { crawlAllSources } from '@/api/crawler'
+import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 
 const activeMenu = computed(() => route.path)
+const isLoginPage = computed(() => route.path === '/login')
 
 const loading = ref(false)
 
@@ -76,6 +111,20 @@ const handleCrawlAll = async () => {
     ElMessage.error('抓取失败: ' + (error.message || '未知错误'))
   } finally {
     loading.value = false
+  }
+}
+
+const handleLogout = async () => {
+  try {
+    await ElMessageBox.confirm('确定要退出登录吗？', '退出确认', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    await userStore.logout()
+    ElMessage.success('已退出登录')
+    router.push('/login')
+  } catch (e) {
   }
 }
 </script>
@@ -124,7 +173,30 @@ const handleCrawlAll = async () => {
     .header-right {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 20px;
+
+      .user-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        padding: 0 8px;
+        line-height: 40px;
+
+        &:hover {
+          background: #f5f7fa;
+          border-radius: 6px;
+        }
+
+        .username {
+          font-size: 14px;
+          color: #303133;
+          max-width: 100px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
     }
   }
 }

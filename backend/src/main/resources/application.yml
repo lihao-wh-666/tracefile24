@@ -46,3 +46,7 @@ logging:
   level:
     com.hotevent: debug
     org.springframework.web: info
+
+jwt:
+  secret: hot-event-detector-secret-key-for-jwt-token-must-be-long-enough-2024
+  expiration: 86400000
