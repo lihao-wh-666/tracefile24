@@ -51,6 +51,11 @@ export const useUserStore = defineStore('user', {
         localStorage.removeItem(USER_KEY)
         throw e
       }
+    },
+
+    updateUser(user) {
+      this.user = user
+      localStorage.setItem(USER_KEY, JSON.stringify(user))
     }
   }
 })

@@ -33,6 +33,7 @@ public class UserService {
                 user.getUsername(),
                 user.getNickname(),
                 user.getEmail(),
+                user.getAvatar(),
                 user.getRole(),
                 user.getEnabled(),
                 user.getCreateTime()
@@ -98,6 +99,9 @@ public class UserService {
         if (request.getEmail() != null) {
             user.setEmail(request.getEmail());
         }
+        if (request.getAvatar() != null) {
+            user.setAvatar(request.getAvatar());
+        }
         if (request.getRole() != null) {
             user.setRole(request.getRole());
         }
@@ -119,5 +123,57 @@ public class UserService {
         user.setDeleted(true);
         userRepository.save(user);
         log.info("删除用户成功: {}", user.getUsername());
+    }
+
+    @Transactional
+    public UserVO updateProfile(Long userId, com.hotevent.dto.ProfileUpdateRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+        if (user.getDeleted()) {
+            throw new RuntimeException("用户不存在");
+        }
+        if (request.getNickname() != null) {
+            user.setNickname(request.getNickname());
+        }
+        if (request.getEmail() != null) {
+            user.setEmail(request.getEmail());
+        }
+        if (request.getAvatar() != null) {
+            user.setAvatar(request.getAvatar());
+        }
+        user = userRepository.save(user);
+        log.info("更新个人资料成功: {}", user.getUsername());
+        return toVO(user);
+    }
+
+    @Transactional
+    public void updatePassword(Long userId, com.hotevent.dto.PasswordUpdateRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+        if (user.getDeleted()) {
+            throw new RuntimeException("用户不存在");
+        }
+        if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+            throw new RuntimeException("原密码不正确");
+        }
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new RuntimeException("两次输入的新密码不一致");
+        }
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+        log.info("更新密码成功: {}", user.getUsername());
+    }
+
+    @Transactional
+    public UserVO updateAvatar(Long userId, String avatarUrl) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+        if (user.getDeleted()) {
+            throw new RuntimeException("用户不存在");
+        }
+        user.setAvatar(avatarUrl);
+        user = userRepository.save(user);
+        log.info("更新头像成功: {}", user.getUsername());
+        return toVO(user);
     }
 }

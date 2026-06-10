@@ -1,24 +1,18 @@
 package com.hotevent.dto;
 
-import com.hotevent.entity.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
-public class UserUpdateRequest {
+public class ProfileUpdateRequest {
 
-    @Size(min = 6, max = 100, message = "密码长度应在6-100之间")
-    private String password;
-
+    @Size(max = 100, message = "昵称长度不能超过100")
     private String nickname;
 
     @Email(message = "邮箱格式不正确")
+    @Size(max = 100, message = "邮箱长度不能超过100")
     private String email;
 
     private String avatar;
-
-    private Role role;
-
-    private Boolean enabled;
 }

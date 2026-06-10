@@ -42,7 +42,11 @@
             </el-button>
             <el-dropdown>
               <div class="user-info">
-                <el-avatar :size="32" :icon="UserFilled" />
+                <el-avatar
+                  :size="32"
+                  :src="userStore.user?.avatar ? getAvatarUrl(userStore.user.avatar) : ''"
+                  :icon="!userStore.user?.avatar ? UserFilled : undefined"
+                />
                 <span class="username">{{ userStore.username }}</span>
                 <el-tag v-if="userStore.isAdmin" type="danger" size="small" effect="dark">
                   管理员
@@ -59,7 +63,11 @@
                     <el-icon><Message /></el-icon>
                     {{ userStore.user?.email || '未设置邮箱' }}
                   </el-dropdown-item>
-                  <el-dropdown-item divided @click="handleLogout">
+                  <el-dropdown-item divided @click="goToProfile">
+                    <el-icon><Setting /></el-icon>
+                    个人中心
+                  </el-dropdown-item>
+                  <el-dropdown-item @click="handleLogout">
                     <el-icon><SwitchButton /></el-icon>
                     退出登录
                   </el-dropdown-item>
@@ -85,7 +93,7 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { UserFilled, ArrowDown, SwitchButton } from '@element-plus/icons-vue'
+import { UserFilled, ArrowDown, SwitchButton, Setting } from '@element-plus/icons-vue'
 import { crawlAllSources } from '@/api/crawler'
 import { useUserStore } from '@/stores/user'
 
@@ -126,6 +134,18 @@ const handleLogout = async () => {
     router.push('/login')
   } catch (e) {
   }
+}
+
+const goToProfile = () => {
+  router.push('/profile')
+}
+
+const getAvatarUrl = (avatar) => {
+  if (!avatar) return ''
+  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+    return avatar
+  }
+  return '/api' + avatar
 }
 </script>
 
