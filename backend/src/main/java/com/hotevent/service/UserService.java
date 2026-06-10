@@ -40,15 +40,13 @@ public class UserService {
     }
 
     public List<UserVO> listAll() {
-        return userRepository.findAll().stream()
-                .filter(u -> !u.getDeleted())
+        return userRepository.findByDeletedFalse().stream()
                 .map(this::toVO)
                 .collect(Collectors.toList());
     }
 
     public Page<UserVO> page(Pageable pageable) {
-        return userRepository.findAll(pageable)
-                .filter(u -> !u.getDeleted())
+        return userRepository.findByDeletedFalse(pageable)
                 .map(this::toVO);
     }
 
