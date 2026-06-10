@@ -1,5 +1,6 @@
 package com.hotevent.security;
 
+import com.hotevent.entity.User;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -47,6 +48,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
             if (jwtUtil.validateToken(jwt, userDetails)) {
+                Integer tokenPv = jwtUtil.extractPasswordVersion(jwt);
+                if (userDetails instanceof User user) {
+                    int currentPv = user.getPasswordVersion() != null ? user.getPasswordVersion() : 0;
+                    if (tokenPv != currentPv) {
+                        log.warn("Token passwordVersion mismatch for user {}: token={}, current={}", username, tokenPv, currentPv);
+                        filterChain.doFilter(request, response);
+                        return;
+                    }
+                }
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         userDetails, null, userDetails.getAuthorities());
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

@@ -46,6 +46,9 @@ public class User implements UserDetails {
     @Column(name = "enabled")
     private Boolean enabled = true;
 
+    @Column(name = "password_version")
+    private Integer passwordVersion = 0;
+
     @Column(name = "deleted")
     private Boolean deleted = false;
 

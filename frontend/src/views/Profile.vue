@@ -115,9 +115,11 @@ import { ElMessage } from 'element-plus'
 import { UserFilled, Upload } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { useUserStore } from '@/stores/user'
+import { useRouter } from 'vue-router'
 import { updateProfile, updatePassword, uploadAvatar as uploadAvatarApi } from '@/api/auth'
 
 const userStore = useUserStore()
+const router = useRouter()
 
 const activeTab = ref('profile')
 const avatarLoading = ref(false)
@@ -233,8 +235,9 @@ const handleUpdatePassword = async () => {
       passwordSubmitting.value = true
       try {
         await updatePassword(passwordForm)
-        ElMessage.success('密码修改成功')
-        resetPasswordForm()
+        ElMessage.success('密码修改成功，请重新登录')
+        await userStore.logout()
+        router.push('/login')
       } catch (error) {
         ElMessage.error(error.message || '密码修改失败')
       } finally {

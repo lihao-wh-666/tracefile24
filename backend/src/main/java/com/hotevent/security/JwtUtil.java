@@ -1,5 +1,6 @@
 package com.hotevent.security;
 
+import com.hotevent.entity.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -55,7 +56,19 @@ public class JwtUtil {
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", userDetails.getAuthorities().iterator().next().getAuthority());
+        if (userDetails instanceof User user) {
+            claims.put("pv", user.getPasswordVersion() != null ? user.getPasswordVersion() : 0);
+        }
         return createToken(claims, userDetails.getUsername());
+    }
+
+    public Integer extractPasswordVersion(String token) {
+        final Claims claims = extractAllClaims(token);
+        Object pv = claims.get("pv");
+        if (pv instanceof Number) {
+            return ((Number) pv).intValue();
+        }
+        return 0;
     }
 
     private String createToken(Map<String, Object> claims, String subject) {

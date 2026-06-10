@@ -160,6 +160,7 @@ public class UserService {
             throw new RuntimeException("两次输入的新密码不一致");
         }
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        user.setPasswordVersion(user.getPasswordVersion() != null ? user.getPasswordVersion() + 1 : 1);
         userRepository.save(user);
         log.info("更新密码成功: {}", user.getUsername());
     }
