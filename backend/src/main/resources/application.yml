@@ -59,3 +59,9 @@ file:
   upload:
     path: ./uploads
     url-prefix: /uploads
+
+security:
+  login:
+    max-attempts: 5
+    lock-minutes: 30
+    attempt-window-minutes: 30

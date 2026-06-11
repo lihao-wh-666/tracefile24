@@ -49,6 +49,15 @@ public class User implements UserDetails {
     @Column(name = "password_version")
     private Integer passwordVersion = 0;
 
+    @Column(name = "login_fail_count")
+    private Integer loginFailCount = 0;
+
+    @Column(name = "last_login_fail_time")
+    private LocalDateTime lastLoginFailTime;
+
+    @Column(name = "lock_time")
+    private LocalDateTime lockTime;
+
     @Column(name = "deleted")
     private Boolean deleted = false;
 
@@ -87,7 +96,14 @@ public class User implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return true;
+        if (lockTime == null) {
+            return true;
+        }
+        return LocalDateTime.now().isAfter(lockTime);
+    }
+
+    public boolean isLocked() {
+        return !isAccountNonLocked();
     }
 
     @Override

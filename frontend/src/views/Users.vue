@@ -28,15 +28,37 @@
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column prop="locked" label="锁定" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.locked ? 'danger' : 'success'">
+              {{ row.locked ? '已锁定' : '正常' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="loginFailCount" label="失败次数" width="100" />
+        <el-table-column prop="lockTime" label="锁定至" width="180">
+          <template #default="{ row }">
+            {{ formatDate(row.lockTime) }}
+          </template>
+        </el-table-column>
         <el-table-column prop="createTime" label="创建时间" width="200">
           <template #default="{ row }">
             {{ formatDate(row.createTime) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click="handleEdit(row)">
               编辑
+            </el-button>
+            <el-button
+              v-if="row.locked"
+              type="warning"
+              link
+              size="small"
+              @click="handleUnlock(row)"
+            >
+              解锁
             </el-button>
             <el-button
               type="danger"
@@ -117,7 +139,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
-import { getUserList, createUser, updateUser, deleteUser } from '@/api/auth'
+import { getUserList, createUser, updateUser, deleteUser, unlockUser } from '@/api/auth'
 
 const loading = ref(false)
 const tableData = ref([])
@@ -242,6 +264,25 @@ const handleDelete = (row) => {
     try {
       await deleteUser(row.id)
       ElMessage.success('删除成功')
+      fetchList()
+    } catch (error) {
+    }
+  }).catch(() => {})
+}
+
+const handleUnlock = (row) => {
+  ElMessageBox.confirm(
+    `确定要解锁用户 "${row.username}" 吗？`,
+    '解锁确认',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(async () => {
+    try {
+      await unlockUser(row.id)
+      ElMessage.success('解锁成功')
       fetchList()
     } catch (error) {
     }

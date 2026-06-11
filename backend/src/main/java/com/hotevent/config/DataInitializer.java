@@ -3,6 +3,7 @@ package com.hotevent.config;
 import com.hotevent.dto.UserCreateRequest;
 import com.hotevent.entity.Role;
 import com.hotevent.service.CrawlerService;
+import com.hotevent.service.SysConfigService;
 import com.hotevent.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,8 +20,12 @@ public class DataInitializer implements CommandLineRunner {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private SysConfigService sysConfigService;
+
     @Override
     public void run(String... args) {
+        initSysConfigs();
         initUsers();
         log.info("应用启动，开始执行初始数据抓取...");
         try {
@@ -28,6 +33,16 @@ public class DataInitializer implements CommandLineRunner {
             log.info("初始数据抓取完成");
         } catch (Exception e) {
             log.error("初始数据抓取失败", e);
+        }
+    }
+
+    private void initSysConfigs() {
+        log.info("开始初始化系统配置...");
+        try {
+            sysConfigService.initDefaultConfigs();
+            log.info("系统配置初始化完成");
+        } catch (Exception e) {
+            log.error("系统配置初始化失败", e);
         }
     }
 

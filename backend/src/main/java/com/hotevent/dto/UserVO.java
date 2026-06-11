@@ -18,5 +18,9 @@ public class UserVO {
     private String avatar;
     private Role role;
     private Boolean enabled;
+    private Integer loginFailCount;
+    private LocalDateTime lastLoginFailTime;
+    private LocalDateTime lockTime;
+    private Boolean locked;
     private LocalDateTime createTime;
 }

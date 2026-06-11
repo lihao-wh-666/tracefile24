@@ -47,3 +47,28 @@ CREATE TABLE IF NOT EXISTS crawl_record (
     INDEX idx_crawl_time (crawl_time),
     INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='抓取记录表';
+
+-- 系统配置表
+CREATE TABLE IF NOT EXISTS sys_config (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    config_key VARCHAR(100) NOT NULL UNIQUE COMMENT '配置键',
+    config_value VARCHAR(500) NOT NULL COMMENT '配置值',
+    config_name VARCHAR(100) COMMENT '配置名称',
+    description VARCHAR(500) COMMENT '配置描述',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_config_key (config_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统配置表';
+
+-- 初始化系统配置
+INSERT INTO sys_config (config_key, config_value, config_name, description) VALUES
+('maxLoginAttempts', '5', '最大登录失败次数', '用户在锁定时间窗口内允许的最大密码错误次数'),
+('loginLockMinutes', '30', '账号锁定时间(分钟)', '超过最大失败次数后账号被锁定的时间'),
+('loginAttemptWindowMinutes', '30', '登录失败统计窗口(分钟)', '统计登录失败次数的时间窗口')
+ON DUPLICATE KEY UPDATE config_value = VALUES(config_value);
+
+-- 用户表增加登录失败相关字段
+ALTER TABLE sys_user
+    ADD COLUMN IF NOT EXISTS login_fail_count INT DEFAULT 0 COMMENT '登录失败次数' AFTER password_version,
+    ADD COLUMN IF NOT EXISTS last_login_fail_time DATETIME COMMENT '最后登录失败时间' AFTER login_fail_count,
+    ADD COLUMN IF NOT EXISTS lock_time DATETIME COMMENT '账号锁定时间' AFTER last_login_fail_time;

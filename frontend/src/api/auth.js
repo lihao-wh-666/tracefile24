@@ -73,6 +73,13 @@ export function deleteUser(id) {
   })
 }
 
+export function unlockUser(id) {
+  return request({
+    url: `/users/${id}/unlock`,
+    method: 'post'
+  })
+}
+
 export function getProfile() {
   return request({
     url: '/profile',

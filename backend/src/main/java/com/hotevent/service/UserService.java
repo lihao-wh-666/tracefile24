@@ -14,7 +14,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -27,6 +29,9 @@ public class UserService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private SysConfigService sysConfigService;
+
     public UserVO toVO(User user) {
         return new UserVO(
                 user.getId(),
@@ -36,6 +41,10 @@ public class UserService {
                 user.getAvatar(),
                 user.getRole(),
                 user.getEnabled(),
+                user.getLoginFailCount(),
+                user.getLastLoginFailTime(),
+                user.getLockTime(),
+                user.isLocked(),
                 user.getCreateTime()
         );
     }
@@ -176,5 +185,70 @@ public class UserService {
         user = userRepository.save(user);
         log.info("更新头像成功: {}", user.getUsername());
         return toVO(user);
+    }
+
+    @Transactional
+    public void recordLoginFailure(String username) {
+        Optional<User> userOpt = userRepository.findByUsername(username);
+        if (userOpt.isEmpty()) {
+            return;
+        }
+        User user = userOpt.get();
+        if (user.getDeleted()) {
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        int windowMinutes = sysConfigService.getLoginAttemptWindowMinutes();
+        LocalDateTime windowStart = now.minusMinutes(windowMinutes);
+
+        if (user.getLastLoginFailTime() == null || user.getLastLoginFailTime().isBefore(windowStart)) {
+            user.setLoginFailCount(1);
+        } else {
+            user.setLoginFailCount((user.getLoginFailCount() != null ? user.getLoginFailCount() : 0) + 1);
+        }
+        user.setLastLoginFailTime(now);
+
+        int maxAttempts = sysConfigService.getMaxLoginAttempts();
+        if (user.getLoginFailCount() >= maxAttempts) {
+            int lockMinutes = sysConfigService.getLoginLockMinutes();
+            user.setLockTime(now.plusMinutes(lockMinutes));
+            log.warn("用户 {} 登录失败次数过多，账号已被锁定 {} 分钟", username, lockMinutes);
+        }
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public void resetLoginFailures(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+        user.setLoginFailCount(0);
+        user.setLastLoginFailTime(null);
+        user.setLockTime(null);
+        userRepository.save(user);
+        log.info("重置用户登录失败状态: {}", user.getUsername());
+    }
+
+    @Transactional
+    public UserVO unlockUser(Long userId) {
+        resetLoginFailures(userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+        log.info("解锁用户账号: {}", user.getUsername());
+        return toVO(user);
+    }
+
+    @Transactional
+    public void resetLoginFailuresOnSuccess(String username) {
+        Optional<User> userOpt = userRepository.findByUsername(username);
+        if (userOpt.isEmpty()) {
+            return;
+        }
+        User user = userOpt.get();
+        if (user.getLoginFailCount() != null && user.getLoginFailCount() > 0) {
+            user.setLoginFailCount(0);
+            user.setLastLoginFailTime(null);
+            user.setLockTime(null);
+            userRepository.save(user);
+        }
     }
 }

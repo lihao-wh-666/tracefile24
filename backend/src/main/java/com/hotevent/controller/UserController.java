@@ -72,4 +72,9 @@ public class UserController {
         userService.delete(id);
         return Result.success("删除成功", null);
     }
+
+    @PostMapping("/{id}/unlock")
+    public Result<UserVO> unlock(@PathVariable Long id) {
+        return Result.success("解锁成功", userService.unlockUser(id));
+    }
 }

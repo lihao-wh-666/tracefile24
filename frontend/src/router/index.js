@@ -39,6 +39,12 @@ const routes = [
     meta: { title: '用户管理', requireAdmin: true }
   },
   {
+    path: '/sys-configs',
+    name: 'SysConfigs',
+    component: () => import('@/views/SysConfigs.vue'),
+    meta: { title: '系统管理', requireAdmin: true }
+  },
+  {
     path: '/profile',
     name: 'Profile',
     component: () => import('@/views/Profile.vue'),

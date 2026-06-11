@@ -33,6 +33,10 @@
                 <el-icon><User /></el-icon>
                 <span>用户管理</span>
               </el-menu-item>
+              <el-menu-item v-if="userStore.isAdmin" index="/sys-configs">
+                <el-icon><Setting /></el-icon>
+                <span>系统管理</span>
+              </el-menu-item>
             </el-menu>
           </div>
           <div class="header-right">
