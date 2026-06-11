@@ -92,6 +92,34 @@ public class SysConfigService {
         return config;
     }
 
+    @Transactional
+    public SysConfig create(String configKey, String configValue, String configName, String description) {
+        if (sysConfigRepository.existsByConfigKey(configKey)) {
+            throw new RuntimeException("配置键已存在: " + configKey);
+        }
+        SysConfig config = new SysConfig();
+        config.setConfigKey(configKey);
+        config.setConfigValue(configValue);
+        config.setConfigName(configName);
+        config.setDescription(description);
+        config = sysConfigRepository.save(config);
+        log.info("创建系统配置成功: {}={}", configKey, configValue);
+        return config;
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        SysConfig config = sysConfigRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("配置不存在"));
+        if (KEY_MAX_LOGIN_ATTEMPTS.equals(config.getConfigKey())
+                || KEY_LOGIN_LOCK_MINUTES.equals(config.getConfigKey())
+                || KEY_LOGIN_ATTEMPT_WINDOW_MINUTES.equals(config.getConfigKey())) {
+            throw new RuntimeException("系统内置配置不允许删除");
+        }
+        sysConfigRepository.deleteById(id);
+        log.info("删除系统配置成功: key={}", config.getConfigKey());
+    }
+
     public void initDefaultConfigs() {
         if (!sysConfigRepository.existsByConfigKey(KEY_MAX_LOGIN_ATTEMPTS)) {
             save(KEY_MAX_LOGIN_ATTEMPTS, String.valueOf(DEFAULT_MAX_LOGIN_ATTEMPTS),

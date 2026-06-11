@@ -3,7 +3,10 @@ import { ElMessage } from 'element-plus'
 
 const service = axios.create({
   baseURL: '/api',
-  timeout: 30000
+  timeout: 30000,
+  headers: {
+    'Content-Type': 'application/json;charset=UTF-8'
+  }
 })
 
 service.interceptors.request.use(

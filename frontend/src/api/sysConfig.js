@@ -14,10 +14,25 @@ export function getSysConfig(key) {
   })
 }
 
+export function createSysConfig(data) {
+  return request({
+    url: '/sys-configs',
+    method: 'post',
+    data
+  })
+}
+
 export function updateSysConfig(id, data) {
   return request({
     url: `/sys-configs/${id}`,
     method: 'put',
     data
+  })
+}
+
+export function deleteSysConfig(id) {
+  return request({
+    url: `/sys-configs/${id}`,
+    method: 'delete'
   })
 }
