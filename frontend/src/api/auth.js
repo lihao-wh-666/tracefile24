@@ -1,10 +1,15 @@
 import request from '@/utils/request'
+import { encryptPassword } from '@/utils/rsa'
 
-export function login(data) {
+export async function login(data) {
+  const encryptedData = {
+    ...data,
+    password: await encryptPassword(data.password)
+  }
   return request({
     url: '/auth/login',
     method: 'post',
-    data
+    data: encryptedData
   })
 }
 
@@ -37,19 +42,27 @@ export function getUser(id) {
   })
 }
 
-export function createUser(data) {
+export async function createUser(data) {
+  const encryptedData = {
+    ...data,
+    password: data.password ? await encryptPassword(data.password) : data.password
+  }
   return request({
     url: '/users',
     method: 'post',
-    data
+    data: encryptedData
   })
 }
 
-export function updateUser(id, data) {
+export async function updateUser(id, data) {
+  const encryptedData = { ...data }
+  if (data.password) {
+    encryptedData.password = await encryptPassword(data.password)
+  }
   return request({
     url: `/users/${id}`,
     method: 'put',
-    data
+    data: encryptedData
   })
 }
 
@@ -75,11 +88,16 @@ export function updateProfile(data) {
   })
 }
 
-export function updatePassword(data) {
+export async function updatePassword(data) {
+  const encryptedData = {
+    oldPassword: await encryptPassword(data.oldPassword),
+    newPassword: await encryptPassword(data.newPassword),
+    confirmPassword: await encryptPassword(data.confirmPassword)
+  }
   return request({
     url: '/profile/password',
     method: 'put',
-    data
+    data: encryptedData
   })
 }
 
@@ -95,3 +113,4 @@ export function uploadAvatar(file) {
     }
   })
 }
+

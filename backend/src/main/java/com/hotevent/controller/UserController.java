@@ -6,6 +6,7 @@ import com.hotevent.dto.UserCreateRequest;
 import com.hotevent.dto.UserUpdateRequest;
 import com.hotevent.dto.UserVO;
 import com.hotevent.service.UserService;
+import com.hotevent.util.RsaUtil;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -24,6 +25,9 @@ public class UserController {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private RsaUtil rsaUtil;
 
     @GetMapping
     public Result<List<UserVO>> list() {
@@ -51,11 +55,15 @@ public class UserController {
 
     @PostMapping
     public Result<UserVO> create(@Valid @RequestBody UserCreateRequest request) {
+        request.setPassword(rsaUtil.decryptIfNeeded(request.getPassword()));
         return Result.success("创建成功", userService.create(request));
     }
 
     @PutMapping("/{id}")
     public Result<UserVO> update(@PathVariable Long id, @Valid @RequestBody UserUpdateRequest request) {
+        if (request.getPassword() != null && !request.getPassword().isEmpty()) {
+            request.setPassword(rsaUtil.decryptIfNeeded(request.getPassword()));
+        }
         return Result.success("更新成功", userService.update(id, request));
     }
 

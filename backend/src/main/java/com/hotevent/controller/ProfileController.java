@@ -6,6 +6,7 @@ import com.hotevent.dto.ProfileUpdateRequest;
 import com.hotevent.dto.UserVO;
 import com.hotevent.entity.User;
 import com.hotevent.service.UserService;
+import com.hotevent.util.RsaUtil;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +30,9 @@ public class ProfileController {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private RsaUtil rsaUtil;
 
     @Value("${file.upload.path:./uploads}")
     private String uploadPath;
@@ -59,6 +63,9 @@ public class ProfileController {
     public Result<Void> updatePassword(@Valid @RequestBody PasswordUpdateRequest request) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.getPrincipal() instanceof User user) {
+            request.setOldPassword(rsaUtil.decryptIfNeeded(request.getOldPassword()));
+            request.setNewPassword(rsaUtil.decryptIfNeeded(request.getNewPassword()));
+            request.setConfirmPassword(rsaUtil.decryptIfNeeded(request.getConfirmPassword()));
             userService.updatePassword(user.getId(), request);
             return Result.success("密码修改成功", null);
         }

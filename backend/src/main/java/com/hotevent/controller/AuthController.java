@@ -7,6 +7,7 @@ import com.hotevent.dto.UserVO;
 import com.hotevent.entity.User;
 import com.hotevent.security.JwtUtil;
 import com.hotevent.service.UserService;
+import com.hotevent.util.RsaUtil;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,10 +31,19 @@ public class AuthController {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private RsaUtil rsaUtil;
+
+    @GetMapping("/public-key")
+    public Result<String> getPublicKey() {
+        return Result.success(rsaUtil.getPublicKey());
+    }
+
     @PostMapping("/login")
     public Result<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+        String decryptedPassword = rsaUtil.decryptIfNeeded(request.getPassword());
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
+                new UsernamePasswordAuthenticationToken(request.getUsername(), decryptedPassword)
         );
         User user = (User) authentication.getPrincipal();
         if (!user.isEnabled()) {
