@@ -120,6 +120,10 @@ const handleLogin = async () => {
         clearTimeoutParam()
         router.push('/')
       } catch (error) {
+        console.error('登录失败:', error)
+        if (error.message && error.message !== 'Error') {
+          ElMessage.error(error.message)
+        }
       } finally {
         loading.value = false
       }
