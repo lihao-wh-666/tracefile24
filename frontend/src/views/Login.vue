@@ -1,6 +1,17 @@
 <template>
   <div class="login-container">
     <div class="login-box">
+      <el-alert
+        v-if="showTimeoutAlert"
+        type="warning"
+        :closable="false"
+        show-icon
+        class="timeout-alert"
+      >
+        <template #title>会话已超时</template>
+        由于长时间未操作，您的会话已安全终止。为了您的账户安全，请重新登录。
+      </el-alert>
+
       <div class="login-header">
         <el-icon :size="48" color="#409EFF">
           <TrendCharts />
@@ -54,17 +65,19 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 
 const loginFormRef = ref(null)
 const loading = ref(false)
+const showTimeoutAlert = ref(false)
 
 const loginForm = reactive({
   username: '',
@@ -76,6 +89,26 @@ const loginRules = {
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
 }
 
+const checkTimeoutRedirect = () => {
+  const timeoutParam = route.query.timeout
+  if (timeoutParam === '1' || timeoutParam === 1) {
+    showTimeoutAlert.value = true
+    setTimeout(() => {
+      showTimeoutAlert.value = false
+    }, 8000)
+  }
+}
+
+const clearTimeoutParam = () => {
+  if (route.query.timeout) {
+    const { timeout, ...restQuery } = route.query
+    router.replace({
+      path: '/login',
+      query: restQuery
+    })
+  }
+}
+
 const handleLogin = async () => {
   if (!loginFormRef.value) return
   await loginFormRef.value.validate(async (valid) => {
@@ -84,6 +117,7 @@ const handleLogin = async () => {
       try {
         await userStore.login(loginForm)
         ElMessage.success('登录成功')
+        clearTimeoutParam()
         router.push('/')
       } catch (error) {
       } finally {
@@ -92,6 +126,10 @@ const handleLogin = async () => {
     }
   })
 }
+
+onMounted(() => {
+  checkTimeoutRedirect()
+})
 </script>
 
 <style scoped lang="scss">
@@ -102,6 +140,20 @@ const handleLogin = async () => {
   justify-content: center;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 20px;
+}
+
+.timeout-alert {
+  margin-bottom: 24px;
+  border-radius: 8px;
+
+  :deep(.el-alert__title) {
+    font-weight: 600;
+    color: #b88230;
+  }
+
+  :deep(.el-alert__content) {
+    color: #a0712c;
+  }
 }
 
 .login-box {

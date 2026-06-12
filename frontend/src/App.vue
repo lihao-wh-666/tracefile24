@@ -2,6 +2,13 @@
   <div id="app">
     <router-view v-if="isLoginPage" />
     <el-container v-else class="layout-container">
+      <SessionTimeoutModal
+        ref="timeoutModalRef"
+        @warning-shown="onWarningShown"
+        @continue="onSessionContinue"
+        @logout="onSessionLogout"
+        @timeout="onSessionTimeout"
+      />
       <el-header class="layout-header">
         <div class="header-content">
           <div class="logo">
@@ -94,12 +101,14 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { UserFilled, ArrowDown, SwitchButton, Setting } from '@element-plus/icons-vue'
 import { crawlAllSources } from '@/api/crawler'
 import { useUserStore } from '@/stores/user'
+import SessionTimeoutModal from '@/components/SessionTimeoutModal.vue'
+import sessionTimeout from '@/utils/sessionTimeout'
 
 const route = useRoute()
 const router = useRouter()
@@ -109,6 +118,72 @@ const activeMenu = computed(() => route.path)
 const isLoginPage = computed(() => route.path === '/login')
 
 const loading = ref(false)
+const timeoutModalRef = ref(null)
+
+const onWarningShown = (data) => {
+  console.log('Session warning shown:', data)
+}
+
+const onSessionContinue = () => {
+  console.log('Session continued by user')
+}
+
+const onSessionLogout = () => {
+  console.log('User logged out due to timeout warning')
+}
+
+const onSessionTimeout = () => {
+  console.log('Session timed out')
+}
+
+const initSessionTimeout = () => {
+  if (userStore.isLoggedIn && !sessionTimeout.isInitialized) {
+    sessionTimeout.init({
+      callbacks: {
+        onWarning: (data) => {
+          if (timeoutModalRef.value) {
+            timeoutModalRef.value.showWarning(data)
+          }
+        },
+        onTimeout: async () => {
+          if (timeoutModalRef.value) {
+            await timeoutModalRef.value.handleTimeout()
+          }
+        },
+        onActivity: (data) => {
+          console.log('User activity detected:', data)
+        }
+      }
+    })
+  }
+}
+
+const destroySessionTimeout = () => {
+  if (sessionTimeout.isInitialized) {
+    sessionTimeout.destroy()
+  }
+}
+
+watch(
+  () => userStore.isLoggedIn,
+  (isLoggedIn) => {
+    if (isLoggedIn) {
+      initSessionTimeout()
+    } else {
+      destroySessionTimeout()
+    }
+  }
+)
+
+onMounted(() => {
+  if (userStore.isLoggedIn) {
+    initSessionTimeout()
+  }
+})
+
+onUnmounted(() => {
+  destroySessionTimeout()
+})
 
 const handleCrawlAll = async () => {
   if (loading.value) return

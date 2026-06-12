@@ -1,6 +1,7 @@
 package com.hotevent.controller;
 
 import com.hotevent.common.Result;
+import com.hotevent.config.SessionTimeoutProperties;
 import com.hotevent.dto.LoginRequest;
 import com.hotevent.dto.LoginResponse;
 import com.hotevent.dto.UserVO;
@@ -49,6 +50,9 @@ public class AuthController {
 
     @Autowired
     private SysConfigService sysConfigService;
+
+    @Autowired
+    private SessionTimeoutProperties sessionTimeoutProperties;
 
     @GetMapping("/public-key")
     public Result<String> getPublicKey() {
@@ -129,5 +133,33 @@ public class AuthController {
     public Result<Void> logout() {
         SecurityContextHolder.clearContext();
         return Result.success("登出成功", null);
+    }
+
+    @PostMapping("/heartbeat")
+    public Result<java.util.Map<String, Object>> heartbeat() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof User user) {
+            java.util.Map<String, Object> response = new java.util.HashMap<>();
+            response.put("timestamp", System.currentTimeMillis());
+            response.put("serverTime", java.time.LocalDateTime.now().toString());
+            response.put("username", user.getUsername());
+            response.put("sessionTimeout", sessionTimeoutProperties.getDefaultTimeoutMs());
+            response.put("warningBefore", sessionTimeoutProperties.getWarningTimeoutMs());
+            log.debug("Heartbeat received from user: {}", user.getUsername());
+            return Result.success("会话活跃", response);
+        }
+        return Result.error(401, "会话已失效");
+    }
+
+    @GetMapping("/session-config")
+    public Result<java.util.Map<String, Object>> getSessionConfig() {
+        java.util.Map<String, Object> config = new java.util.HashMap<>();
+        config.put("defaultTimeout", sessionTimeoutProperties.getDefaultTimeoutMs());
+        config.put("warningBefore", sessionTimeoutProperties.getWarningTimeoutMs());
+        config.put("minTimeout", (long) sessionTimeoutProperties.getMinMinutes() * 60 * 1000);
+        config.put("maxTimeout", (long) sessionTimeoutProperties.getMaxMinutes() * 60 * 1000);
+        config.put("defaultTimeoutMinutes", sessionTimeoutProperties.getDefaultMinutes());
+        config.put("warningBeforeMinutes", sessionTimeoutProperties.getWarningMinutes());
+        return Result.success(config);
     }
 }

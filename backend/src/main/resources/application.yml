@@ -57,7 +57,14 @@ logging:
 
 jwt:
   secret: hot-event-detector-secret-key-for-jwt-token-must-be-long-enough-2024
-  expiration: 86400000
+  expiration: 1800000
+
+session:
+  timeout:
+    default-minutes: 30
+    warning-minutes: 5
+    min-minutes: 1
+    max-minutes: 1440
 
 file:
   upload:

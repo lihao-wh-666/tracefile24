@@ -121,3 +121,17 @@ export function uploadAvatar(file) {
   })
 }
 
+export function heartbeat() {
+  return request({
+    url: '/auth/heartbeat',
+    method: 'post'
+  })
+}
+
+export function getSessionConfig() {
+  return request({
+    url: '/auth/session-config',
+    method: 'get'
+  })
+}
+
