@@ -23,4 +23,6 @@ public interface CrawlRecordRepository extends JpaRepository<CrawlRecord, Long> 
     List<Object[]> getCrawlStatistics(@Param("startTime") LocalDateTime startTime);
 
     List<CrawlRecord> findByCrawlTimeAfterOrderByCrawlTimeDesc(LocalDateTime crawlTime);
+
+    java.util.Optional<CrawlRecord> findTopBySourceOrderByCrawlTimeDesc(String source);
 }

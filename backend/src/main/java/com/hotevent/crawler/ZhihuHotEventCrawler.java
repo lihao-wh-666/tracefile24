@@ -7,6 +7,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Component
@@ -29,111 +31,159 @@ public class ZhihuHotEventCrawler extends AbstractHotEventCrawler {
     protected List<HotEvent> parseHtml(String html) {
         List<HotEvent> events = new ArrayList<>();
         try {
+            log.debug("[zhihu] 开始解析知乎热榜HTML，内容长度: {}", html.length());
             var doc = parseDocument(html);
-            var elements = doc.select(".HotItem");
 
-            for (int i = 0; i < elements.size(); i++) {
-                var element = elements.get(i);
-                var titleElement = element.selectFirst(".HotItem-content .HotItem-title");
-                var descElement = element.selectFirst(".HotItem-content .HotItem-excerpt");
-                var hotElement = element.selectFirst(".HotItem-metrics");
-                var urlElement = element.selectFirst("a");
+            var selectors = new String[][]{
+                    {".HotItem", ".HotItem-content .HotItem-title", ".HotItem-content .HotItem-excerpt", ".HotItem-metrics", "a"},
+                    {"[class*='HotItem']", "[class*='HotItem-title']", "[class*='HotItem-excerpt']", "[class*='HotItem-metrics']", "a"},
+                    {".HotList-item", ".HotList-itemTitle", ".HotList-itemExcerpt", ".HotList-itemMetrics", "a"},
+                    {"section", "h2", "p", "[class*='metrics']", "a"},
+                    {"a[href*='question']", "h2", "p", null, "a[href*='question']"}
+            };
 
-                if (titleElement != null) {
-                    String title = titleElement.text();
-                    String url = urlElement != null ? "https://www.zhihu.com" + urlElement.attr("href") : "";
-                    String description = descElement != null ? descElement.text() : "";
-                    Long hotValue = 0L;
-                    if (hotElement != null) {
-                        String hotText = hotElement.text();
+            boolean parsed = false;
+            for (int selectorIdx = 0; selectorIdx < selectors.length && !parsed; selectorIdx++) {
+                String[] sel = selectors[selectorIdx];
+                var elements = doc.select(sel[0]);
+                log.debug("[zhihu] 使用第{}套选择器，匹配元素数量: {}", selectorIdx + 1, elements.size());
+
+                if (!elements.isEmpty()) {
+                    for (int i = 0; i < elements.size(); i++) {
                         try {
-                            hotValue = parseHotValue(hotText);
+                            var element = elements.get(i);
+                            var titleElement = sel[1] != null ? element.selectFirst(sel[1]) : null;
+                            var descElement = sel[2] != null ? element.selectFirst(sel[2]) : null;
+                            var hotElement = sel[3] != null ? element.selectFirst(sel[3]) : null;
+                            var urlElement = sel[4] != null ? element.selectFirst(sel[4]) : null;
+
+                            if (titleElement != null) {
+                                String title = titleElement.text().trim();
+                                String href = urlElement != null ? urlElement.attr("href") : "";
+                                String url = buildZhihuUrl(href);
+                                String description = descElement != null ? descElement.text().trim() : "";
+                                Long hotValue = 0L;
+
+                                if (hotElement != null) {
+                                    String hotText = hotElement.text();
+                                    hotValue = parseHotValue(hotText);
+                                }
+
+                                if (title.isEmpty()) {
+                                    continue;
+                                }
+
+                                if (hotValue == null || hotValue == 0) {
+                                    hotValue = calculateDefaultHotValue(i, elements.size());
+                                }
+
+                                HotEvent event = createHotEvent(title, url, hotValue, i + 1);
+                                event.setDescription(description);
+                                event.setCategory("知识");
+                                events.add(event);
+                            }
                         } catch (Exception e) {
-                            hotValue = (long) (300000 - i * 15000);
+                            log.warn("[zhihu] 解析第{}条记录时出错: {}", i + 1, e.getMessage());
                         }
                     }
-                    HotEvent event = createHotEvent(title, url, hotValue, i + 1);
-                    event.setDescription(description);
-                    events.add(event);
+                    if (!events.isEmpty()) {
+                        parsed = true;
+                        log.info("[zhihu] 使用第{}套选择器成功解析{}条记录", selectorIdx + 1, events.size());
+                    }
                 }
             }
+
+            if (events.isEmpty()) {
+                log.warn("[zhihu] 所有选择器均未匹配到元素，尝试使用正则表达式从JSON数据中提取");
+                events = parseFromJsonEmbedded(html);
+            }
+
         } catch (Exception e) {
-            log.error("解析知乎热榜失败", e);
+            log.error("[zhihu] 解析知乎热榜HTML失败", e);
         }
         return events;
     }
 
-    @Override
-    protected String[] getMockTitles(String sourceName) {
-        return new String[]{
-            "如何看待人工智能的发展趋势",
-            "2024年有哪些值得关注的科技热点",
-            "程序员如何保持竞争力",
-            "有哪些让你相见恨晚的学习方法",
-            "年轻人应该如何规划职业生涯",
-            "为什么越来越多的人选择躺平",
-            "如何评价当前的互联网行业",
-            "普通人如何实现财务自由",
-            "有哪些高质量的书籍推荐",
-            "如何培养孩子的自主学习能力",
-            "30岁转行还来得及吗",
-            "如何看待内卷现象",
-            "为什么现在的年轻人不想结婚",
-            "如何提升自己的认知水平",
-            "有哪些实用的时间管理方法",
-            "如何克服拖延症",
-            "为什么读书越来越重要",
-            "如何看待元宇宙概念",
-            "普通人如何抓住时代机遇",
-            "如何评价ChatGPT的影响",
-            "深度学习入门指南",
-            "如何培养批判性思维",
-            "为什么很多人到了中年开始焦虑",
-            "如何看待职场PUA",
-            "有哪些值得关注的科技动态",
-            "如何提高自己的情商",
-            "为什么说选择比努力更重要",
-            "如何看待教育内卷",
-            "普通人如何实现阶层跨越",
-            "如何培养自己的核心竞争力",
-            "为什么现在年轻人压力越来越大",
-            "如何看待房价走势",
-            "有哪些好的理财方式",
-            "如何提升自己的表达能力",
-            "为什么越来越多的人开始健身",
-            "如何看待新能源汽车的发展",
-            "普通人如何应对不确定性",
-            "如何评价当前的经济形势",
-            "有哪些令人惊艳的软件推荐",
-            "如何培养终身学习的习惯",
-            "为什么知识付费越来越火",
-            "如何看待远程办公趋势",
-            "有哪些高质量的纪录片推荐",
-            "如何提升自己的审美",
-            "为什么说健康是最大的财富",
-            "如何看待自媒体行业的发展",
-            "普通人如何打造个人品牌",
-            "如何提高工作效率",
-            "为什么越来越多的人选择考公",
-            "如何看待消费降级现象"
-        };
+    private List<HotEvent> parseFromJsonEmbedded(String html) {
+        List<HotEvent> events = new ArrayList<>();
+        try {
+            String[] patterns = new String[]{
+                    "\"title\"\\s*:\\s*\"([^\"]+)\".*?\"detailText\"\\s*:\\s*\"([^\"]*)\".*?\"heat\"\\s*:\\s*(\\d+)",
+                    "\"title\"\\s*:\\s*\"([^\"]+)\".*?\"excerpt\"\\s*:\\s*\"([^\"]*)\".*?\"heat\"\\s*:\\s*(\\d+)",
+                    "\"title\"\\s*:\\s*\"([^\"]+)\".*?\"heatText\"\\s*:\\s*\"([^\"]*)\"",
+                    "\"title\"\\s*:\\s*\"([^\"]+)\""
+            };
+
+            int patternIdx = 0;
+            while (events.isEmpty() && patternIdx < patterns.length) {
+                Pattern pattern = Pattern.compile(patterns[patternIdx]);
+                Matcher matcher = pattern.matcher(html);
+                int count = 0;
+
+                while (matcher.find() && count < 50) {
+                    String title = matcher.group(1);
+                    if (title != null && !title.trim().isEmpty()
+                            && !title.contains("{") && !title.contains("}")) {
+
+                        String description = matcher.groupCount() >= 2 ? matcher.group(2) : "";
+                        if (description == null) description = "";
+
+                        Long hotValue;
+                        try {
+                            hotValue = matcher.groupCount() >= 3
+                                    ? Long.parseLong(matcher.group(3))
+                                    : calculateDefaultHotValue(count, 50);
+                        } catch (Exception e) {
+                            hotValue = calculateDefaultHotValue(count, 50);
+                        }
+
+                        HotEvent event = createHotEvent(
+                                title.trim(),
+                                "https://www.zhihu.com/search?q=" + title.trim().replace(" ", "%20"),
+                                hotValue,
+                                count + 1
+                        );
+                        event.setDescription(description.trim());
+                        event.setCategory("知识");
+                        events.add(event);
+                        count++;
+                    }
+                }
+                patternIdx++;
+            }
+            log.info("[zhihu] 通过JSON正则提取到{}条记录", events.size());
+        } catch (Exception e) {
+            log.error("[zhihu] 正则解析失败", e);
+        }
+        return events;
+    }
+
+    private String buildZhihuUrl(String href) {
+        if (href == null || href.isEmpty()) {
+            return "https://www.zhihu.com/hot";
+        }
+        if (href.startsWith("http")) {
+            return href;
+        }
+        if (href.startsWith("//")) {
+            return "https:" + href;
+        }
+        if (href.startsWith("/")) {
+            return "https://www.zhihu.com" + href;
+        }
+        return "https://www.zhihu.com/" + href;
+    }
+
+    private Long calculateDefaultHotValue(int index, int total) {
+        double base = 400000.0;
+        double decay = Math.pow(0.96, index);
+        double jitter = (random.nextDouble() - 0.5) * 40000;
+        return Math.max(10000L, (long) (base * decay + jitter));
     }
 
     @Override
     public List<HotEvent> crawl() throws Exception {
-        try {
-            String html = fetchHtml(getCrawlUrl());
-            List<HotEvent> events = parseHtml(html);
-            if (events.isEmpty()) {
-                log.warn("知乎热榜数据为空，使用模拟数据");
-                events = generateMockData(50, getSourceName());
-            }
-            log.info("知乎热榜抓取完成，共{}条", events.size());
-            return events;
-        } catch (Exception e) {
-            log.error("知乎热榜抓取失败，使用模拟数据: {}", e.getMessage());
-            return generateMockData(50, getSourceName());
-        }
+        return executeCrawl();
     }
 
     @Override
@@ -145,10 +195,39 @@ public class ZhihuHotEventCrawler extends AbstractHotEventCrawler {
         if (hotText == null || hotText.isEmpty()) {
             return 0L;
         }
-        hotText = hotText.replace("万热度", "0000").replace("热度", "");
         try {
-            return Long.parseLong(hotText.trim());
+            String processed = hotText.replace(",", "").replace("，", "").trim();
+
+            Pattern yiPattern = Pattern.compile("([\\d.]+)\\s*亿");
+            Matcher yiMatcher = yiPattern.matcher(processed);
+            if (yiMatcher.find()) {
+                double value = Double.parseDouble(yiMatcher.group(1));
+                return (long) (value * 100000000);
+            }
+
+            Pattern wanPattern = Pattern.compile("([\\d.]+)\\s*万");
+            Matcher wanMatcher = wanPattern.matcher(processed);
+            if (wanMatcher.find()) {
+                double value = Double.parseDouble(wanMatcher.group(1));
+                return (long) (value * 10000);
+            }
+
+            Pattern qianPattern = Pattern.compile("([\\d.]+)\\s*千");
+            Matcher qianMatcher = qianPattern.matcher(processed);
+            if (qianMatcher.find()) {
+                double value = Double.parseDouble(qianMatcher.group(1));
+                return (long) (value * 1000);
+            }
+
+            Pattern numPattern = Pattern.compile("(\\d+)");
+            Matcher numMatcher = numPattern.matcher(processed);
+            if (numMatcher.find()) {
+                return Long.parseLong(numMatcher.group(1));
+            }
+
+            return 0L;
         } catch (NumberFormatException e) {
+            log.debug("[zhihu] 热度值解析失败: {}", hotText);
             return 0L;
         }
     }

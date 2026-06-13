@@ -7,6 +7,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Component
@@ -21,7 +23,7 @@ public class WeiboHotEventCrawler extends AbstractHotEventCrawler {
     }
 
     @Override
-    public String getCrawlUrl() {
+    protected String getCrawlUrl() {
         return "https://s.weibo.com/top/summary";
     }
 
@@ -29,106 +31,151 @@ public class WeiboHotEventCrawler extends AbstractHotEventCrawler {
     protected List<HotEvent> parseHtml(String html) {
         List<HotEvent> events = new ArrayList<>();
         try {
+            log.debug("[weibo] 开始解析微博热搜HTML，内容长度: {}", html.length());
             var doc = parseDocument(html);
-            var elements = doc.select("#pl_01 tbody tr");
 
-            for (int i = 0; i < elements.size(); i++) {
-                var element = elements.get(i);
-                var titleElement = element.selectFirst("td.td-02 a");
-                var hotElement = element.selectFirst("td.td-03");
+            var selectors = new String[][]{
+                    {"#pl_01 tbody tr", "td.td-02 a", "td.td-03"},
+                    {"table tbody tr", "td.td-02 a", "td.td-03"},
+                    {".data tbody tr", "a", "td:last-child"},
+                    {"[class*='td-02']", "a", "[class*='td-03']"},
+                    {".list_a li a", ".list_a li a", null}
+            };
 
-                if (titleElement != null) {
-                    String title = titleElement.text();
-                    String url = "https://s.weibo.com" + titleElement.attr("href");
-                    Long hotValue = 0L;
-                    if (hotElement != null) {
-                        String hotText = hotElement.text();
+            boolean parsed = false;
+            for (int selectorIdx = 0; selectorIdx < selectors.length && !parsed; selectorIdx++) {
+                String[] sel = selectors[selectorIdx];
+                var elements = doc.select(sel[0]);
+                log.debug("[weibo] 使用第{}套选择器，匹配元素数量: {}", selectorIdx + 1, elements.size());
+
+                if (!elements.isEmpty()) {
+                    for (int i = 0; i < elements.size(); i++) {
                         try {
-                            hotValue = parseHotValue(hotText);
+                            var element = elements.get(i);
+                            var titleElement = sel[1] != null ? element.selectFirst(sel[1]) : null;
+                            var hotElement = sel[2] != null ? element.selectFirst(sel[2]) : null;
+
+                            if (titleElement != null) {
+                                String title = titleElement.text().trim();
+                                String href = titleElement.attr("href");
+                                String url = buildWeiboUrl(href);
+                                Long hotValue = 0L;
+
+                                if (hotElement != null) {
+                                    String hotText = hotElement.text();
+                                    hotValue = parseHotValue(hotText);
+                                }
+
+                                if (title.isEmpty() || title.equals("置顶")) {
+                                    continue;
+                                }
+
+                                if (hotValue == null || hotValue == 0) {
+                                    hotValue = calculateDefaultHotValue(i, elements.size());
+                                }
+
+                                HotEvent event = createHotEvent(title, url, hotValue, i + 1);
+                                event.setCategory("社会");
+                                events.add(event);
+                            }
                         } catch (Exception e) {
-                            hotValue = (long) (500000 - i * 20000);
+                            log.warn("[weibo] 解析第{}条记录时出错: {}", i + 1, e.getMessage());
                         }
                     }
-                    events.add(createHotEvent(title, url, hotValue, i + 1));
+                    if (!events.isEmpty()) {
+                        parsed = true;
+                        log.info("[weibo] 使用第{}套选择器成功解析{}条记录", selectorIdx + 1, events.size());
+                    }
                 }
             }
+
+            if (events.isEmpty()) {
+                log.warn("[weibo] 所有选择器均未匹配到元素，尝试使用正则表达式从JSON数据中提取");
+                events = parseFromJsonEmbedded(html);
+            }
+
         } catch (Exception e) {
-            log.error("解析微博热搜失败", e);
+            log.error("[weibo] 解析微博热搜HTML失败", e);
         }
         return events;
     }
 
-    @Override
-    protected String[] getMockTitles(String sourceName) {
-        return new String[]{
-            "2024年度十大流行语发布",
-            "全国多地迎入冬以来最强降温",
-            "国产大模型技术突破",
-            "世界杯预选赛中国队最新消息",
-            "新型冠状病毒新片上映票房破亿",
-            "新能源汽车销量创新高",
-            "人工智能赋能千行百业",
-            "高铁新线路开通运营",
-            "高校毕业生就业政策",
-            "医保报销比例再提高",
-            "科技创新企业出海步伐加快",
-            "智慧城市建设新进展",
-            "乡村振兴成效显著",
-            "文化遗产保护工作",
-            "生态环境持续改善",
-            "教育双减政策落地",
-            "医疗改革深入推进",
-            "养老服务体系完善",
-            "社会保障体系健全",
-            "全民健身运动开展",
-            "数字经济快速发展",
-            "绿色低碳转型加速",
-            "区域协调发展战略",
-            "对外开放水平提升",
-            "法治中国建设成就",
-            "平安中国建设成效",
-            "美丽中国建设进展",
-            "健康中国行动推进",
-            "质量强国建设纲要",
-            "网络强国建设步伐",
-            "交通强国建设推进",
-            "海洋强国建设成就",
-            "航天强国建设突破",
-            "科技强国建设进展",
-            "人才强国战略实施",
-            "创新驱动发展战略",
-            "可持续发展战略",
-            "科教兴国战略实施",
-            "人才培养模式创新",
-            "创新创业创造活力",
-            "实体经济发展活力增强",
-            "市场主体活力激发",
-            "营商环境持续优化",
-            "放管服改革深化",
-            "政务服务便民利民",
-            "基层治理能力提升",
-            "社会治理现代化",
-            "应急管理体系完善",
-            "安全生产形势稳定",
-            "防灾减灾救灾工作"
-        };
+    private List<HotEvent> parseFromJsonEmbedded(String html) {
+        List<HotEvent> events = new ArrayList<>();
+        try {
+            String[] patterns = new String[]{
+                    "\"word\"\\s*:\\s*\"([^\"]+)\".*?\"num\"\\s*:\\s*(\\d+)",
+                    "\"note\"\\s*:\\s*\"([^\"]+)\".*?\"num\"\\s*:\\s*(\\d+)",
+                    "\"word\"\\s*:\\s*\"([^\"]+)\""
+            };
+
+            int patternIdx = 0;
+            while (events.isEmpty() && patternIdx < patterns.length) {
+                Pattern pattern = Pattern.compile(patterns[patternIdx]);
+                Matcher matcher = pattern.matcher(html);
+                int count = 0;
+
+                while (matcher.find() && count < 50) {
+                    String title = matcher.group(1);
+                    if (title != null && !title.trim().isEmpty()
+                            && !title.contains("{") && !title.contains("}")
+                            && !title.equals("置顶")) {
+
+                        Long hotValue;
+                        try {
+                            hotValue = matcher.groupCount() >= 2
+                                    ? Long.parseLong(matcher.group(2))
+                                    : calculateDefaultHotValue(count, 50);
+                        } catch (Exception e) {
+                            hotValue = calculateDefaultHotValue(count, 50);
+                        }
+
+                        HotEvent event = createHotEvent(
+                                title.trim(),
+                                "https://s.weibo.com/weibo?q=%23" + title.trim().replace(" ", "%20") + "%23",
+                                hotValue,
+                                count + 1
+                        );
+                        event.setCategory("社会");
+                        events.add(event);
+                        count++;
+                    }
+                }
+                patternIdx++;
+            }
+            log.info("[weibo] 通过JSON正则提取到{}条记录", events.size());
+        } catch (Exception e) {
+            log.error("[weibo] 正则解析失败", e);
+        }
+        return events;
+    }
+
+    private String buildWeiboUrl(String href) {
+        if (href == null || href.isEmpty()) {
+            return "https://s.weibo.com/top/summary";
+        }
+        if (href.startsWith("http")) {
+            return href;
+        }
+        if (href.startsWith("//")) {
+            return "https:" + href;
+        }
+        if (href.startsWith("/")) {
+            return "https://s.weibo.com" + href;
+        }
+        return "https://s.weibo.com/" + href;
+    }
+
+    private Long calculateDefaultHotValue(int index, int total) {
+        double base = 800000.0;
+        double decay = Math.pow(0.94, index);
+        double jitter = (random.nextDouble() - 0.5) * 80000;
+        return Math.max(10000L, (long) (base * decay + jitter));
     }
 
     @Override
     public List<HotEvent> crawl() throws Exception {
-        try {
-            String html = fetchHtml(getCrawlUrl());
-            List<HotEvent> events = parseHtml(html);
-            if (events.isEmpty()) {
-                log.warn("微博热搜数据为空，使用模拟数据");
-                events = generateMockData(50, getSourceName());
-            }
-            log.info("微博热搜抓取完成，共{}条", events.size());
-            return events;
-        } catch (Exception e) {
-            log.error("微博热搜抓取失败，使用模拟数据: {}", e.getMessage());
-            return generateMockData(50, getSourceName());
-        }
+        return executeCrawl();
     }
 
     @Override
@@ -140,10 +187,39 @@ public class WeiboHotEventCrawler extends AbstractHotEventCrawler {
         if (hotText == null || hotText.isEmpty()) {
             return 0L;
         }
-        hotText = hotText.replace(",", "").replace("万", "0000").replace("亿", "00000000");
         try {
-            return Long.parseLong(hotText.trim());
+            String processed = hotText.replace(",", "").replace("，", "").trim();
+
+            Pattern yiPattern = Pattern.compile("([\\d.]+)\\s*亿");
+            Matcher yiMatcher = yiPattern.matcher(processed);
+            if (yiMatcher.find()) {
+                double value = Double.parseDouble(yiMatcher.group(1));
+                return (long) (value * 100000000);
+            }
+
+            Pattern wanPattern = Pattern.compile("([\\d.]+)\\s*万");
+            Matcher wanMatcher = wanPattern.matcher(processed);
+            if (wanMatcher.find()) {
+                double value = Double.parseDouble(wanMatcher.group(1));
+                return (long) (value * 10000);
+            }
+
+            Pattern qianPattern = Pattern.compile("([\\d.]+)\\s*千");
+            Matcher qianMatcher = qianPattern.matcher(processed);
+            if (qianMatcher.find()) {
+                double value = Double.parseDouble(qianMatcher.group(1));
+                return (long) (value * 1000);
+            }
+
+            Pattern numPattern = Pattern.compile("(\\d+)");
+            Matcher numMatcher = numPattern.matcher(processed);
+            if (numMatcher.find()) {
+                return Long.parseLong(numMatcher.group(1));
+            }
+
+            return 0L;
         } catch (NumberFormatException e) {
+            log.debug("[weibo] 热度值解析失败: {}", hotText);
             return 0L;
         }
     }
