@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { ElMessage } from 'element-plus'
+import message from '@/utils/message'
 
 const service = axios.create({
   baseURL: '/api',
@@ -33,7 +33,7 @@ service.interceptors.response.use(
           window.location.href = '/login'
         }
       }
-      ElMessage.error(res.message || '请求失败')
+      message.error(res.message || '请求失败')
       return Promise.reject(new Error(res.message || 'Error'))
     }
     return res.data
@@ -46,7 +46,7 @@ service.interceptors.response.use(
         window.location.href = '/login'
       }
     }
-    ElMessage.error(error.message || '请求失败')
+    message.error(error.message || '请求失败')
     return Promise.reject(error)
   }
 )

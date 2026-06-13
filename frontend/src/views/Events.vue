@@ -109,9 +109,10 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessageBox } from 'element-plus'
 import { getHotEventList, deleteHotEvent } from '@/api/event'
 import dayjs from 'dayjs'
+import message from '@/utils/message'
 
 const router = useRouter()
 
@@ -205,7 +206,7 @@ const handleDelete = async (id) => {
     })
 
     await deleteHotEvent(id)
-    ElMessage.success('删除成功')
+    message.success('删除成功')
     fetchEventList()
   } catch (error) {
     if (error !== 'cancel') {

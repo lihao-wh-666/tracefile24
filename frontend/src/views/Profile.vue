@@ -111,12 +111,12 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
 import { UserFilled, Upload } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
 import { updateProfile, updatePassword, uploadAvatar as uploadAvatarApi } from '@/api/auth'
+import message from '@/utils/message'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -186,12 +186,12 @@ const formatDate = (date) => {
 const beforeAvatarUpload = (file) => {
   const isImage = file.type.startsWith('image/')
   if (!isImage) {
-    ElMessage.error('只支持上传图片文件')
+    message.error('只支持上传图片文件')
     return false
   }
   const isLt5M = file.size / 1024 / 1024 < 5
   if (!isLt5M) {
-    ElMessage.error('图片大小不能超过 5MB')
+    message.error('图片大小不能超过 5MB')
     return false
   }
   return true
@@ -202,9 +202,9 @@ const uploadAvatar = async (options) => {
   try {
     const data = await uploadAvatarApi(options.file)
     userStore.updateUser(data)
-    ElMessage.success('头像上传成功')
+    message.success('头像上传成功')
   } catch (error) {
-    ElMessage.error(error.message || '头像上传失败')
+    message.error(error.message || '头像上传失败')
   } finally {
     avatarLoading.value = false
   }
@@ -218,9 +218,9 @@ const handleUpdateProfile = async () => {
       try {
         const data = await updateProfile(profileForm)
         userStore.updateUser(data)
-        ElMessage.success('资料更新成功')
+        message.success('资料更新成功')
       } catch (error) {
-        ElMessage.error(error.message || '资料更新失败')
+        message.error(error.message || '资料更新失败')
       } finally {
         profileSubmitting.value = false
       }
@@ -235,11 +235,11 @@ const handleUpdatePassword = async () => {
       passwordSubmitting.value = true
       try {
         await updatePassword(passwordForm)
-        ElMessage.success('密码修改成功，请重新登录')
+        message.success('密码修改成功，请重新登录')
         await userStore.logout()
         router.push('/login')
       } catch (error) {
-        ElMessage.error(error.message || '密码修改失败')
+        message.error(error.message || '密码修改失败')
       } finally {
         passwordSubmitting.value = false
       }

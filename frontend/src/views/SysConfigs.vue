@@ -86,11 +86,15 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
 import { getSysConfigList, createSysConfig, updateSysConfig, deleteSysConfig } from '@/api/sysConfig'
+import { useMessageConfigStore } from '@/stores/messageConfig'
+import message from '@/utils/message'
 
-const SYSTEM_CONFIG_KEYS = ['maxLoginAttempts', 'loginLockMinutes', 'loginAttemptWindowMinutes', 'sessionTimeoutMinutes', 'sessionWarningMinutes']
+const SYSTEM_CONFIG_KEYS = ['maxLoginAttempts', 'loginLockMinutes', 'loginAttemptWindowMinutes', 'sessionTimeoutMinutes', 'sessionWarningMinutes', 'messageDuration']
+
+const messageConfigStore = useMessageConfigStore()
 
 const loading = ref(false)
 const tableData = ref([])
@@ -171,7 +175,13 @@ const handleSubmit = async () => {
             configName: form.configName,
             description: form.description
           })
-          ElMessage.success('更新成功')
+          if (form.configKey === 'messageDuration') {
+            const duration = parseInt(form.configValue)
+            if (!isNaN(duration) && duration > 0) {
+              messageConfigStore.setDuration(duration)
+            }
+          }
+          message.success('更新成功')
         } else {
           await createSysConfig({
             configKey: form.configKey,
@@ -179,7 +189,7 @@ const handleSubmit = async () => {
             configValue: form.configValue,
             description: form.description
           })
-          ElMessage.success('创建成功')
+          message.success('创建成功')
         }
         dialogVisible.value = false
         fetchList()
@@ -203,7 +213,7 @@ const handleDelete = (row) => {
   ).then(async () => {
     try {
       await deleteSysConfig(row.id)
-      ElMessage.success('删除成功')
+      message.success('删除成功')
       fetchList()
     } catch (error) {
     }

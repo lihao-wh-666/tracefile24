@@ -21,6 +21,13 @@ export function getSessionTimeoutConfig() {
   })
 }
 
+export function getMessageConfig() {
+  return request({
+    url: '/sys-configs/message-config',
+    method: 'get'
+  })
+}
+
 export function createSysConfig(data) {
   return request({
     url: '/sys-configs',

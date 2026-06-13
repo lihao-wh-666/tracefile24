@@ -67,9 +67,9 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
+import message from '@/utils/message'
 
 const router = useRouter()
 const route = useRoute()
@@ -116,13 +116,13 @@ const handleLogin = async () => {
       loading.value = true
       try {
         await userStore.login(loginForm)
-        ElMessage.success('登录成功')
+        message.success('登录成功')
         clearTimeoutParam()
         router.push('/')
       } catch (error) {
         console.error('登录失败:', error)
         if (error.message && error.message !== 'Error') {
-          ElMessage.error(error.message)
+          message.error(error.message)
         }
       } finally {
         loading.value = false

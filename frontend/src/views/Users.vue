@@ -137,9 +137,10 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
 import { getUserList, createUser, updateUser, deleteUser, unlockUser } from '@/api/auth'
+import message from '@/utils/message'
 
 const loading = ref(false)
 const tableData = ref([])
@@ -236,10 +237,10 @@ const handleSubmit = async () => {
       try {
         if (isEdit.value) {
           await updateUser(editId.value, form)
-          ElMessage.success('更新成功')
+          message.success('更新成功')
         } else {
           await createUser(form)
-          ElMessage.success('创建成功')
+          message.success('创建成功')
         }
         dialogVisible.value = false
         fetchList()
@@ -263,7 +264,7 @@ const handleDelete = (row) => {
   ).then(async () => {
     try {
       await deleteUser(row.id)
-      ElMessage.success('删除成功')
+      message.success('删除成功')
       fetchList()
     } catch (error) {
     }
@@ -282,7 +283,7 @@ const handleUnlock = (row) => {
   ).then(async () => {
     try {
       await unlockUser(row.id)
-      ElMessage.success('解锁成功')
+      message.success('解锁成功')
       fetchList()
     } catch (error) {
     }

@@ -19,12 +19,14 @@ public class SysConfigService {
     public static final String KEY_LOGIN_ATTEMPT_WINDOW_MINUTES = "loginAttemptWindowMinutes";
     public static final String KEY_SESSION_TIMEOUT_MINUTES = "sessionTimeoutMinutes";
     public static final String KEY_SESSION_WARNING_MINUTES = "sessionWarningMinutes";
+    public static final String KEY_MESSAGE_DURATION = "messageDuration";
 
     public static final int DEFAULT_MAX_LOGIN_ATTEMPTS = 5;
     public static final int DEFAULT_LOGIN_LOCK_MINUTES = 30;
     public static final int DEFAULT_LOGIN_ATTEMPT_WINDOW_MINUTES = 30;
     public static final int DEFAULT_SESSION_TIMEOUT_MINUTES = 30;
     public static final int DEFAULT_SESSION_WARNING_MINUTES = 5;
+    public static final int DEFAULT_MESSAGE_DURATION = 1500;
 
     @Autowired
     private SysConfigRepository sysConfigRepository;
@@ -70,6 +72,10 @@ public class SysConfigService {
 
     public int getSessionWarningMinutes() {
         return getIntValue(KEY_SESSION_WARNING_MINUTES, DEFAULT_SESSION_WARNING_MINUTES);
+    }
+
+    public int getMessageDuration() {
+        return getIntValue(KEY_MESSAGE_DURATION, DEFAULT_MESSAGE_DURATION);
     }
 
     @Transactional
@@ -135,7 +141,8 @@ public class SysConfigService {
                 || KEY_LOGIN_LOCK_MINUTES.equals(configKey)
                 || KEY_LOGIN_ATTEMPT_WINDOW_MINUTES.equals(configKey)
                 || KEY_SESSION_TIMEOUT_MINUTES.equals(configKey)
-                || KEY_SESSION_WARNING_MINUTES.equals(configKey);
+                || KEY_SESSION_WARNING_MINUTES.equals(configKey)
+                || KEY_MESSAGE_DURATION.equals(configKey);
     }
 
     public void initDefaultConfigs() {
@@ -158,6 +165,10 @@ public class SysConfigService {
         if (!sysConfigRepository.existsByConfigKey(KEY_SESSION_WARNING_MINUTES)) {
             save(KEY_SESSION_WARNING_MINUTES, String.valueOf(DEFAULT_SESSION_WARNING_MINUTES),
                     "超时警告提前时间(分钟)", "在超时前多久弹出提示警告用户");
+        }
+        if (!sysConfigRepository.existsByConfigKey(KEY_MESSAGE_DURATION)) {
+            save(KEY_MESSAGE_DURATION, String.valueOf(DEFAULT_MESSAGE_DURATION),
+                    "消息提示显示时长(毫秒)", "ElMessage消息提示框的显示持续时间");
         }
     }
 }

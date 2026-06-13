@@ -103,17 +103,20 @@
 <script setup>
 import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessageBox } from 'element-plus'
 import { UserFilled, ArrowDown, SwitchButton, Setting } from '@element-plus/icons-vue'
 import { crawlAllSources } from '@/api/crawler'
 import { getSessionTimeoutConfig } from '@/api/sysConfig'
 import { useUserStore } from '@/stores/user'
+import { useMessageConfigStore } from '@/stores/messageConfig'
 import SessionTimeoutModal from '@/components/SessionTimeoutModal.vue'
 import sessionTimeout from '@/utils/sessionTimeout'
+import message from '@/utils/message'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+const messageConfigStore = useMessageConfigStore()
 
 const activeMenu = computed(() => route.path)
 const isLoginPage = computed(() => route.path === '/login')
@@ -183,6 +186,7 @@ watch(
   (isLoggedIn) => {
     if (isLoggedIn) {
       initSessionTimeout()
+      messageConfigStore.fetchMessageConfig()
     } else {
       destroySessionTimeout()
     }
@@ -192,6 +196,7 @@ watch(
 onMounted(() => {
   if (userStore.isLoggedIn) {
     initSessionTimeout()
+    messageConfigStore.fetchMessageConfig()
   }
 })
 
@@ -204,12 +209,12 @@ const handleCrawlAll = async () => {
   loading.value = true
   try {
     await crawlAllSources()
-    ElMessage.success('抓取任务已启动')
+    message.success('抓取任务已启动')
     setTimeout(() => {
       window.location.reload()
     }, 2000)
   } catch (error) {
-    ElMessage.error('抓取失败: ' + (error.message || '未知错误'))
+    message.error('抓取失败: ' + (error.message || '未知错误'))
   } finally {
     loading.value = false
   }
@@ -223,7 +228,7 @@ const handleLogout = async () => {
       type: 'warning'
     })
     await userStore.logout()
-    ElMessage.success('已退出登录')
+    message.success('已退出登录')
     router.push('/login')
   } catch (e) {
   }

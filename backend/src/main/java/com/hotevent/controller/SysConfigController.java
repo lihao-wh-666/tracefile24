@@ -26,6 +26,13 @@ public class SysConfigController {
         return Result.success(config);
     }
 
+    @GetMapping("/message-config")
+    public Result<Map<String, Integer>> getMessageConfig() {
+        Map<String, Integer> config = new HashMap<>();
+        config.put("messageDuration", sysConfigService.getMessageDuration());
+        return Result.success(config);
+    }
+
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public Result<List<SysConfig>> list() {
