@@ -14,6 +14,13 @@ export function getSysConfig(key) {
   })
 }
 
+export function getSessionTimeoutConfig() {
+  return request({
+    url: '/sys-configs/session-timeout',
+    method: 'get'
+  })
+}
+
 export function createSysConfig(data) {
   return request({
     url: '/sys-configs',

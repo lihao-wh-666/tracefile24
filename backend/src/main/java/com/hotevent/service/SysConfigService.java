@@ -17,10 +17,14 @@ public class SysConfigService {
     public static final String KEY_MAX_LOGIN_ATTEMPTS = "maxLoginAttempts";
     public static final String KEY_LOGIN_LOCK_MINUTES = "loginLockMinutes";
     public static final String KEY_LOGIN_ATTEMPT_WINDOW_MINUTES = "loginAttemptWindowMinutes";
+    public static final String KEY_SESSION_TIMEOUT_MINUTES = "sessionTimeoutMinutes";
+    public static final String KEY_SESSION_WARNING_MINUTES = "sessionWarningMinutes";
 
     public static final int DEFAULT_MAX_LOGIN_ATTEMPTS = 5;
     public static final int DEFAULT_LOGIN_LOCK_MINUTES = 30;
     public static final int DEFAULT_LOGIN_ATTEMPT_WINDOW_MINUTES = 30;
+    public static final int DEFAULT_SESSION_TIMEOUT_MINUTES = 30;
+    public static final int DEFAULT_SESSION_WARNING_MINUTES = 5;
 
     @Autowired
     private SysConfigRepository sysConfigRepository;
@@ -58,6 +62,14 @@ public class SysConfigService {
 
     public int getLoginAttemptWindowMinutes() {
         return getIntValue(KEY_LOGIN_ATTEMPT_WINDOW_MINUTES, DEFAULT_LOGIN_ATTEMPT_WINDOW_MINUTES);
+    }
+
+    public int getSessionTimeoutMinutes() {
+        return getIntValue(KEY_SESSION_TIMEOUT_MINUTES, DEFAULT_SESSION_TIMEOUT_MINUTES);
+    }
+
+    public int getSessionWarningMinutes() {
+        return getIntValue(KEY_SESSION_WARNING_MINUTES, DEFAULT_SESSION_WARNING_MINUTES);
     }
 
     @Transactional
@@ -111,13 +123,19 @@ public class SysConfigService {
     public void delete(Long id) {
         SysConfig config = sysConfigRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("配置不存在"));
-        if (KEY_MAX_LOGIN_ATTEMPTS.equals(config.getConfigKey())
-                || KEY_LOGIN_LOCK_MINUTES.equals(config.getConfigKey())
-                || KEY_LOGIN_ATTEMPT_WINDOW_MINUTES.equals(config.getConfigKey())) {
+        if (isSystemConfig(config.getConfigKey())) {
             throw new RuntimeException("系统内置配置不允许删除");
         }
         sysConfigRepository.deleteById(id);
         log.info("删除系统配置成功: key={}", config.getConfigKey());
+    }
+
+    public boolean isSystemConfig(String configKey) {
+        return KEY_MAX_LOGIN_ATTEMPTS.equals(configKey)
+                || KEY_LOGIN_LOCK_MINUTES.equals(configKey)
+                || KEY_LOGIN_ATTEMPT_WINDOW_MINUTES.equals(configKey)
+                || KEY_SESSION_TIMEOUT_MINUTES.equals(configKey)
+                || KEY_SESSION_WARNING_MINUTES.equals(configKey);
     }
 
     public void initDefaultConfigs() {
@@ -132,6 +150,14 @@ public class SysConfigService {
         if (!sysConfigRepository.existsByConfigKey(KEY_LOGIN_ATTEMPT_WINDOW_MINUTES)) {
             save(KEY_LOGIN_ATTEMPT_WINDOW_MINUTES, String.valueOf(DEFAULT_LOGIN_ATTEMPT_WINDOW_MINUTES),
                     "登录失败统计窗口(分钟)", "统计登录失败次数的时间窗口");
+        }
+        if (!sysConfigRepository.existsByConfigKey(KEY_SESSION_TIMEOUT_MINUTES)) {
+            save(KEY_SESSION_TIMEOUT_MINUTES, String.valueOf(DEFAULT_SESSION_TIMEOUT_MINUTES),
+                    "登录超时时间(分钟)", "用户无操作后自动登出的时间");
+        }
+        if (!sysConfigRepository.existsByConfigKey(KEY_SESSION_WARNING_MINUTES)) {
+            save(KEY_SESSION_WARNING_MINUTES, String.valueOf(DEFAULT_SESSION_WARNING_MINUTES),
+                    "超时警告提前时间(分钟)", "在超时前多久弹出提示警告用户");
         }
     }
 }

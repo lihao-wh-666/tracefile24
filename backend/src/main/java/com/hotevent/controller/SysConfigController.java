@@ -7,23 +7,33 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/sys-configs")
-@PreAuthorize("hasRole('ADMIN')")
 public class SysConfigController {
 
     @Autowired
     private SysConfigService sysConfigService;
 
+    @GetMapping("/session-timeout")
+    public Result<Map<String, Integer>> getSessionTimeoutConfig() {
+        Map<String, Integer> config = new HashMap<>();
+        config.put("sessionTimeoutMinutes", sysConfigService.getSessionTimeoutMinutes());
+        config.put("sessionWarningMinutes", sysConfigService.getSessionWarningMinutes());
+        return Result.success(config);
+    }
+
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<List<SysConfig>> list() {
         return Result.success(sysConfigService.listAll());
     }
 
     @GetMapping("/{key}")
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<SysConfig> getByKey(@PathVariable String key) {
         return sysConfigService.getByKey(key)
                 .map(Result::success)
@@ -31,6 +41,7 @@ public class SysConfigController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<SysConfig> create(@RequestBody Map<String, String> body) {
         String configKey = body.get("configKey");
         String configValue = body.get("configValue");
@@ -46,6 +57,7 @@ public class SysConfigController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<SysConfig> update(@PathVariable Long id, @RequestBody Map<String, String> body) {
         String configValue = body.get("configValue");
         String configName = body.get("configName");
@@ -57,6 +69,7 @@ public class SysConfigController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<Void> delete(@PathVariable Long id) {
         sysConfigService.delete(id);
         return Result.success("删除成功", null);

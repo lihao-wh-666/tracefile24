@@ -95,7 +95,9 @@ CREATE TABLE IF NOT EXISTS sys_config (
 INSERT INTO sys_config (config_key, config_value, config_name, description) VALUES
 ('maxLoginAttempts', '5', '最大登录失败次数', '用户在锁定时间窗口内允许的最大密码错误次数'),
 ('loginLockMinutes', '30', '账号锁定时间(分钟)', '超过最大失败次数后账号被锁定的时间'),
-('loginAttemptWindowMinutes', '30', '登录失败统计窗口(分钟)', '统计登录失败次数的时间窗口')
+('loginAttemptWindowMinutes', '30', '登录失败统计窗口(分钟)', '统计登录失败次数的时间窗口'),
+('sessionTimeoutMinutes', '30', '登录超时时间(分钟)', '用户无操作后自动登出的时间'),
+('sessionWarningMinutes', '5', '超时警告提前时间(分钟)', '在超时前多久弹出提示警告用户')
 ON DUPLICATE KEY UPDATE
     config_value = VALUES(config_value),
     config_name = VALUES(config_name),

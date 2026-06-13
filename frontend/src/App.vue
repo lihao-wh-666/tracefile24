@@ -106,6 +106,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { UserFilled, ArrowDown, SwitchButton, Setting } from '@element-plus/icons-vue'
 import { crawlAllSources } from '@/api/crawler'
+import { getSessionTimeoutConfig } from '@/api/sysConfig'
 import { useUserStore } from '@/stores/user'
 import SessionTimeoutModal from '@/components/SessionTimeoutModal.vue'
 import sessionTimeout from '@/utils/sessionTimeout'
@@ -136,9 +137,22 @@ const onSessionTimeout = () => {
   console.log('Session timed out')
 }
 
-const initSessionTimeout = () => {
+const initSessionTimeout = async () => {
   if (userStore.isLoggedIn && !sessionTimeout.isInitialized) {
+    let timeoutConfig = {}
+    try {
+      const config = await getSessionTimeoutConfig()
+      if (config) {
+        timeoutConfig = {
+          timeout: (config.sessionTimeoutMinutes || 30) * 60 * 1000,
+          warningBefore: (config.sessionWarningMinutes || 5) * 60 * 1000
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to fetch session timeout config, using defaults:', e)
+    }
     sessionTimeout.init({
+      config: timeoutConfig,
       callbacks: {
         onWarning: (data) => {
           if (timeoutModalRef.value) {
