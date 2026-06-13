@@ -11,47 +11,18 @@
     <div class="card">
       <el-table :data="tableData" v-loading="loading" stripe style="width: 100%">
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="configName" label="配置名称" width="220">
-          <template #default="{ row }">
-            <el-input
-              v-if="editingId === row.id"
-              v-model="row.configName"
-              size="small"
-            />
-            <span v-else>{{ row.configName }}</span>
-          </template>
-        </el-table-column>
+        <el-table-column prop="configName" label="配置名称" width="220" />
         <el-table-column prop="configKey" label="配置键" width="260" />
-        <el-table-column prop="configValue" label="配置值" width="200">
-          <template #default="{ row }">
-            <el-input
-              v-if="editingId === row.id"
-              v-model="row.configValue"
-              size="small"
-              style="width: 150px"
-            />
-            <span v-else>{{ row.configValue }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="description" label="描述">
-          <template #default="{ row }">
-            <el-input
-              v-if="editingId === row.id"
-              v-model="row.description"
-              size="small"
-            />
-            <span v-else>{{ row.description }}</span>
-          </template>
-        </el-table-column>
+        <el-table-column prop="configValue" label="配置值" width="200" />
+        <el-table-column prop="description" label="描述" />
         <el-table-column prop="updateTime" label="更新时间" width="180">
           <template #default="{ row }">
             {{ formatDate(row.updateTime) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <el-button
-              v-if="editingId !== row.id"
               type="primary"
               link
               size="small"
@@ -59,24 +30,6 @@
             >
               编辑
             </el-button>
-            <template v-else>
-              <el-button
-                type="success"
-                link
-                size="small"
-                @click="handleSave(row)"
-              >
-                保存
-              </el-button>
-              <el-button
-                type="info"
-                link
-                size="small"
-                @click="handleCancel(row)"
-              >
-                取消
-              </el-button>
-            </template>
             <el-button
               type="danger"
               link
@@ -93,7 +46,7 @@
 
     <el-dialog
       v-model="dialogVisible"
-      title="新增参数"
+      :title="isEdit ? '编辑参数' : '新增参数'"
       width="520px"
       :close-on-click-modal="false"
     >
@@ -104,7 +57,7 @@
         label-width="100px"
       >
         <el-form-item label="配置键" prop="configKey">
-          <el-input v-model="form.configKey" placeholder="请输入配置键（英文，如 maxSize）" />
+          <el-input v-model="form.configKey" :disabled="isEdit" placeholder="请输入配置键（英文，如 maxSize）" />
         </el-form-item>
         <el-form-item label="配置名称" prop="configName">
           <el-input v-model="form.configName" placeholder="请输入配置名称（中文描述）" />
@@ -141,11 +94,11 @@ const SYSTEM_CONFIG_KEYS = ['maxLoginAttempts', 'loginLockMinutes', 'loginAttemp
 
 const loading = ref(false)
 const tableData = ref([])
-const editingId = ref(null)
-const originalValues = ref({})
 const dialogVisible = ref(false)
 const submitting = ref(false)
+const isEdit = ref(false)
 const formRef = ref(null)
+const editId = ref(null)
 
 const form = reactive({
   configKey: '',
@@ -187,48 +140,23 @@ const resetForm = () => {
   form.configName = ''
   form.configValue = ''
   form.description = ''
+  editId.value = null
 }
 
 const handleAdd = () => {
+  isEdit.value = false
   resetForm()
   dialogVisible.value = true
 }
 
 const handleEdit = (row) => {
-  originalValues.value[row.id] = {
-    configValue: row.configValue,
-    configName: row.configName,
-    description: row.description
-  }
-  editingId.value = row.id
-}
-
-const handleCancel = (row) => {
-  const orig = originalValues.value[row.id]
-  if (orig) {
-    row.configValue = orig.configValue
-    row.configName = orig.configName
-    row.description = orig.description
-  }
-  editingId.value = null
-}
-
-const handleSave = async (row) => {
-  if (!row.configValue || row.configValue.trim() === '') {
-    ElMessage.error('配置值不能为空')
-    return
-  }
-  try {
-    await updateSysConfig(row.id, {
-      configValue: row.configValue,
-      configName: row.configName,
-      description: row.description
-    })
-    ElMessage.success('更新成功')
-    editingId.value = null
-    fetchList()
-  } catch (error) {
-  }
+  isEdit.value = true
+  editId.value = row.id
+  form.configKey = row.configKey
+  form.configName = row.configName
+  form.configValue = row.configValue
+  form.description = row.description
+  dialogVisible.value = true
 }
 
 const handleSubmit = async () => {
@@ -237,13 +165,22 @@ const handleSubmit = async () => {
     if (valid) {
       submitting.value = true
       try {
-        await createSysConfig({
-          configKey: form.configKey,
-          configName: form.configName,
-          configValue: form.configValue,
-          description: form.description
-        })
-        ElMessage.success('创建成功')
+        if (isEdit.value) {
+          await updateSysConfig(editId.value, {
+            configValue: form.configValue,
+            configName: form.configName,
+            description: form.description
+          })
+          ElMessage.success('更新成功')
+        } else {
+          await createSysConfig({
+            configKey: form.configKey,
+            configName: form.configName,
+            configValue: form.configValue,
+            description: form.description
+          })
+          ElMessage.success('创建成功')
+        }
         dialogVisible.value = false
         fetchList()
       } catch (error) {
