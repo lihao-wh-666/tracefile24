@@ -90,11 +90,13 @@ import { ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
 import { getSysConfigList, createSysConfig, updateSysConfig, deleteSysConfig } from '@/api/sysConfig'
 import { useMessageConfigStore } from '@/stores/messageConfig'
+import { useCrawlerConfigStore } from '@/stores/crawlerConfig'
 import message from '@/utils/message'
 
-const SYSTEM_CONFIG_KEYS = ['maxLoginAttempts', 'loginLockMinutes', 'loginAttemptWindowMinutes', 'sessionTimeoutMinutes', 'sessionWarningMinutes', 'messageDuration']
+const SYSTEM_CONFIG_KEYS = ['maxLoginAttempts', 'loginLockMinutes', 'loginAttemptWindowMinutes', 'sessionTimeoutMinutes', 'sessionWarningMinutes', 'messageDuration', 'crawlIntervalMinutes']
 
 const messageConfigStore = useMessageConfigStore()
+const crawlerConfigStore = useCrawlerConfigStore()
 
 const loading = ref(false)
 const tableData = ref([])
@@ -179,6 +181,12 @@ const handleSubmit = async () => {
             const duration = parseInt(form.configValue)
             if (!isNaN(duration) && duration > 0) {
               messageConfigStore.setDuration(duration)
+            }
+          }
+          if (form.configKey === 'crawlIntervalMinutes') {
+            const interval = parseInt(form.configValue)
+            if (!isNaN(interval) && interval > 0) {
+              crawlerConfigStore.setInterval(interval)
             }
           }
           message.success('更新成功')

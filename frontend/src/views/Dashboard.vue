@@ -29,8 +29,8 @@
       </el-col>
       <el-col :span="6">
         <div class="stat-card">
-          <div class="stat-label">热门话题</div>
-          <div class="stat-value">{{ topEventsCount }}</div>
+          <div class="stat-label">抓取间隔</div>
+          <div class="stat-value">{{ crawlerConfigStore.interval }}<span class="stat-unit">分钟</span></div>
         </div>
       </el-col>
     </el-row>
@@ -86,8 +86,10 @@ import { ref, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import * as echarts from 'echarts'
 import { getEventStatistics } from '@/api/event'
+import { useCrawlerConfigStore } from '@/stores/crawlerConfig'
 
 const router = useRouter()
+const crawlerConfigStore = useCrawlerConfigStore()
 
 const statistics = ref({})
 const topEvents = ref([])
@@ -249,12 +251,20 @@ const handleResize = () => {
 
 onMounted(() => {
   fetchStatistics()
+  crawlerConfigStore.fetchCrawlIntervalConfig()
   window.addEventListener('resize', handleResize)
 })
 </script>
 
 <style scoped lang="scss">
 .dashboard-page {
+  .stat-unit {
+    font-size: 14px;
+    font-weight: 400;
+    color: #909399;
+    margin-left: 4px;
+  }
+
   .card-header {
     margin-bottom: 16px;
     padding-bottom: 12px;

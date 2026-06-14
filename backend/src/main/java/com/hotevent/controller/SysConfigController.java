@@ -3,6 +3,7 @@ package com.hotevent.controller;
 import com.hotevent.common.Result;
 import com.hotevent.entity.SysConfig;
 import com.hotevent.service.SysConfigService;
+import com.hotevent.task.CrawlScheduleManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -18,6 +19,9 @@ public class SysConfigController {
     @Autowired
     private SysConfigService sysConfigService;
 
+    @Autowired
+    private CrawlScheduleManager crawlScheduleManager;
+
     @GetMapping("/session-timeout")
     public Result<Map<String, Integer>> getSessionTimeoutConfig() {
         Map<String, Integer> config = new HashMap<>();
@@ -30,6 +34,14 @@ public class SysConfigController {
     public Result<Map<String, Integer>> getMessageConfig() {
         Map<String, Integer> config = new HashMap<>();
         config.put("messageDuration", sysConfigService.getMessageDuration());
+        return Result.success(config);
+    }
+
+    @GetMapping("/crawl-interval")
+    public Result<Map<String, Object>> getCrawlIntervalConfig() {
+        Map<String, Object> config = new HashMap<>();
+        config.put("crawlIntervalMinutes", sysConfigService.getCrawlIntervalMinutes());
+        config.put("currentIntervalMinutes", crawlScheduleManager.getCurrentIntervalMinutes());
         return Result.success(config);
     }
 
@@ -72,7 +84,11 @@ public class SysConfigController {
         if (configValue == null || configValue.trim().isEmpty()) {
             return Result.error("配置值不能为空");
         }
-        return Result.success("更新成功", sysConfigService.update(id, configValue, configName, description));
+        SysConfig config = sysConfigService.update(id, configValue, configName, description);
+        if (SysConfigService.KEY_CRAWL_INTERVAL_MINUTES.equals(config.getConfigKey())) {
+            crawlScheduleManager.reschedule();
+        }
+        return Result.success("更新成功", config);
     }
 
     @DeleteMapping("/{id}")

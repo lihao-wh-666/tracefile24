@@ -28,6 +28,13 @@ export function getMessageConfig() {
   })
 }
 
+export function getCrawlIntervalConfig() {
+  return request({
+    url: '/sys-configs/crawl-interval',
+    method: 'get'
+  })
+}
+
 export function createSysConfig(data) {
   return request({
     url: '/sys-configs',
