@@ -22,6 +22,8 @@
         <mybatis-plus.version>3.5.5</mybatis-plus.version>
         <hutool.version>5.8.27</hutool.version>
         <jsoup.version>1.17.2</jsoup.version>
+        <guava.version>33.0.0-jre</guava.version>
+        <okhttp.version>4.12.0</okhttp.version>
     </properties>
 
     <dependencies>
@@ -91,6 +93,28 @@
             <artifactId>jjwt-jackson</artifactId>
             <version>0.12.5</version>
             <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>${guava.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+            <version>${okhttp.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
         <dependency>

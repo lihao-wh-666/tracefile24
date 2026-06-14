@@ -92,3 +92,108 @@ security:
     max-attempts: 5
     lock-minutes: 30
     attempt-window-minutes: 30
+
+hot-event:
+  multi-platform:
+    enabled: true
+    auto-start: true
+    thread-pool-size: 16
+    default-qps: 1.5
+    storage:
+      batch-size: 50
+      incremental-enabled: true
+
+  crawler:
+    enabled: true
+    cron: "0 */30 * * * ?"
+    sources:
+      - weibo
+      - zhihu
+      - baidu
+      - wechat
+      - xiaohongshu
+      - douyin
+      - bilibili
+      - local_forum
+      - government
+    timeout: 30000
+    connect-timeout: 15000
+    retry:
+      max-attempts: 3
+      delay-ms: 3000
+      multiplier: 2.0
+    request-interval-ms: 1500
+    user-agents:
+      - "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+      - "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+      - "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+      - "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0"
+      - "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15"
+      - "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1"
+      - "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36"
+    validation:
+      require-title: true
+      min-title-length: 2
+      require-hot-value: false
+      min-event-count: 3
+    rate-limit:
+      enabled: true
+      default-qps: 2.0
+      global-qps: 20.0
+    proxy:
+      enabled: false
+      min-success-rate: 0.6
+      max-failures: 10
+      check-interval-ms: 60000
+      pool:
+        - host: proxy1.example.com
+          port: 8080
+          type: HTTP
+        - host: proxy2.example.com
+          port: 3128
+          type: HTTP
+    monitor:
+      enabled: true
+      alert-email: ""
+      alert-threshold:
+        failures: 5
+        empty-data: 3
+        high-response-time: 30000
+    compliance:
+      robots-enabled: true
+      robots-cache-hours: 24
+      respect-crawl-delay: true
+      user-agent: "HotEventCrawler/1.0 (+https://example.com/bot.html)"
+    platforms:
+      wechat:
+        enabled: true
+        cron: "0 0 */2 * * ?"
+        max-concurrent: 2
+        max-items: 50
+      xiaohongshu:
+        enabled: true
+        cron: "0 30 */1 * * ?"
+        max-concurrent: 2
+        max-items: 60
+      douyin:
+        enabled: true
+        cron: "0 15 */1 * * ?"
+        max-concurrent: 3
+        max-items: 80
+      bilibili:
+        enabled: true
+        cron: "0 0 */1 * * ?"
+        max-concurrent: 3
+        max-items: 100
+      local_forum:
+        enabled: true
+        base-url: "https://bbs.example.com"
+        cron: "0 0 */3 * * ?"
+        max-concurrent: 2
+        max-items: 40
+      government:
+        enabled: true
+        base-url: "http://www.gov.cn"
+        cron: "0 0 8,12,18 * * ?"
+        max-concurrent: 2
+        max-items: 50
