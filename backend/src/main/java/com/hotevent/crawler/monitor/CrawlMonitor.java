@@ -339,22 +339,22 @@ public class CrawlMonitor {
         ));
         List<Map<String, Object>> platforms = new ArrayList<>();
         for (PlatformStats s : platformStats.values()) {
-            platforms.add(Map.of(
-                    "platform", s.getPlatform(),
-                    "taskCount", s.getTaskCount(),
-                    "successCount", s.getSuccessCount(),
-                    "failureCount", s.getFailureCount(),
-                    "itemsCount", s.getItemsCount(),
-                    "successRate", s.getTaskCount() > 0
+            platforms.add(new LinkedHashMap<>(Map.ofEntries(
+                    Map.entry("platform", s.getPlatform()),
+                    Map.entry("taskCount", s.getTaskCount()),
+                    Map.entry("successCount", s.getSuccessCount()),
+                    Map.entry("failureCount", s.getFailureCount()),
+                    Map.entry("itemsCount", s.getItemsCount()),
+                    Map.entry("successRate", s.getTaskCount() > 0
                             ? String.format("%.2f%%", s.getSuccessCount() * 100.0 / s.getTaskCount())
-                            : "0%",
-                    "avgResponseTime", s.getAvgResponseTime() + "ms",
-                    "maxResponseTime", s.getMaxResponseTime() + "ms",
-                    "consecutiveFailures", s.getConsecutiveFailures(),
-                    "emptyDataRuns", s.getEmptyDataRuns(),
-                    "lastSuccessTime", s.getLastSuccessTime(),
-                    "lastFailureTime", s.getLastFailureTime()
-            ));
+                            : "0%"),
+                    Map.entry("avgResponseTime", s.getAvgResponseTime() + "ms"),
+                    Map.entry("maxResponseTime", s.getMaxResponseTime() + "ms"),
+                    Map.entry("consecutiveFailures", s.getConsecutiveFailures()),
+                    Map.entry("emptyDataRuns", s.getEmptyDataRuns()),
+                    Map.entry("lastSuccessTime", s.getLastSuccessTime()),
+                    Map.entry("lastFailureTime", s.getLastFailureTime())
+            )));
         }
         data.put("platforms", platforms);
 

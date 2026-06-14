@@ -10,11 +10,17 @@ server:
 spring:
   application:
     name: hot-event-detector
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      - org.springframework.boot.autoconfigure.mail.MailSenderAutoConfiguration
+      - org.springframework.boot.autoconfigure.mail.MailSenderValidatorAutoConfiguration
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:hot_event_db}?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&zeroDateTimeBehavior=convertToNull
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:root123456}
+    username: ${DB_USERNAME:hotevent}
+    password: ${DB_PASSWORD:hotevent123}
   jpa:
     hibernate:
       ddl-auto: update
@@ -38,33 +44,6 @@ mybatis-plus:
       logic-delete-field: deleted
       logic-delete-value: 1
       logic-not-delete-value: 0
-
-hot-event:
-  crawler:
-    enabled: true
-    cron: "0 */30 * * * ?"
-    sources:
-      - weibo
-      - zhihu
-      - baidu
-    timeout: 20000
-    connect-timeout: 10000
-    retry:
-      max-attempts: 3
-      delay-ms: 3000
-      multiplier: 2.0
-    request-interval-ms: 1500
-    user-agents:
-      - "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
-      - "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
-      - "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
-      - "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0"
-      - "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15"
-    validation:
-      require-title: true
-      min-title-length: 2
-      require-hot-value: false
-      min-event-count: 3
 
 logging:
   level:
@@ -92,6 +71,15 @@ security:
     max-attempts: 5
     lock-minutes: 30
     attempt-window-minutes: 30
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
 
 hot-event:
   multi-platform:

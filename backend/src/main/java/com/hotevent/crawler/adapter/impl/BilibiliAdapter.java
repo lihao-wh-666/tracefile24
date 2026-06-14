@@ -257,7 +257,13 @@ public class BilibiliAdapter extends AbstractPlatformAdapter {
         }
         JSONArray tags = null;
         JSONObject tagData = data.getByPath("tags", JSONObject.class);
-        if (tagData == null) tags = item.getJSONArray("tag", null);
+        if (tagData == null) {
+            try {
+                tags = item.getJSONArray("tag");
+            } catch (Exception ignored) {
+                tags = null;
+            }
+        }
         if (tags != null) {
             List<String> tlist = new ArrayList<>();
             for (int i = 0; i < tags.size(); i++) {

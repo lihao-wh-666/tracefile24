@@ -17,6 +17,7 @@ public class DataItem {
 
     private String itemId;
     private String platform;
+    private String source;
     private String title;
     private String content;
     private String summary;
@@ -29,6 +30,7 @@ public class DataItem {
     private Long shareCount;
     private Long hotValue;
     private Integer rank;
+    private Integer hotRank;
     private String category;
     private String tags;
     private String coverImage;

@@ -30,8 +30,11 @@ public class CrawlerClient {
     private final ExecutorService requestExecutor;
 
     public CrawlerClient() {
-        this.requestExecutor = Executors.newFixedThreadPool(
+        this.requestExecutor = new ThreadPoolExecutor(
                 Runtime.getRuntime().availableProcessors() * 2,
+                Runtime.getRuntime().availableProcessors() * 4,
+                60L, TimeUnit.SECONDS,
+                new java.util.concurrent.LinkedBlockingQueue<>(1000),
                 new ThreadPoolExecutor.CallerRunsPolicy()
         );
     }

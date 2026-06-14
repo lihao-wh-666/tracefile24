@@ -12,6 +12,7 @@ import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.security.cert.X509Certificate;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -275,7 +276,8 @@ public class HttpClientWrapper {
         }
 
         if (request.getFormParams() != null && !request.getFormParams().isEmpty()) {
-            FormBody.Builder formBuilder = new FormBody.Builder(request.getCharset());
+            java.nio.charset.Charset charset = java.nio.charset.Charset.forName(request.getCharset());
+            FormBody.Builder formBuilder = new FormBody.Builder(charset);
             for (Map.Entry<String, Object> entry : request.getFormParams().entrySet()) {
                 Object value = entry.getValue();
                 if (value != null) {

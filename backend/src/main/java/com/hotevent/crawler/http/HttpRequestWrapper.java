@@ -66,6 +66,8 @@ public class HttpRequestWrapper {
     @Builder.Default
     private String charset = "UTF-8";
 
+    private ProxyInfo usedProxy;
+
     public HttpRequestWrapper header(String name, String value) {
         this.headers.put(name, value);
         return this;
