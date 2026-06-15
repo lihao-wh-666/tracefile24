@@ -94,7 +94,7 @@
       </el-main>
 
       <el-footer class="layout-footer">
-        <p>© 2024 热点事件检测系统 | 数据来源：微博、知乎、百度</p>
+        <p>© 2024 热点事件检测系统 | 多平台数据采集</p>
       </el-footer>
     </el-container>
   </div>
@@ -105,7 +105,7 @@ import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import { UserFilled, ArrowDown, SwitchButton, Setting } from '@element-plus/icons-vue'
-import { crawlAllSources } from '@/api/crawler'
+import { executeAllCrawl } from '@/api/multiCrawler'
 import { getSessionTimeoutConfig } from '@/api/sysConfig'
 import { useUserStore } from '@/stores/user'
 import { useMessageConfigStore } from '@/stores/messageConfig'
@@ -208,8 +208,8 @@ const handleCrawlAll = async () => {
   if (loading.value) return
   loading.value = true
   try {
-    await crawlAllSources()
-    message.success('抓取任务已启动')
+    await executeAllCrawl(true)
+    message.success('全平台采集任务已启动，将采集所有启用状态的平台数据')
     setTimeout(() => {
       window.location.reload()
     }, 2000)

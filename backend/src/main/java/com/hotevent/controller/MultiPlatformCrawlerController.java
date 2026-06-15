@@ -241,13 +241,25 @@ public class MultiPlatformCrawlerController {
     @PostMapping("/crawl/all")
     public Result<Object> executeAllCrawl(@RequestParam(defaultValue = "true") boolean async) {
         try {
+            int enabledCount = dataSourceManager.getEnabledConfigs().size();
             if (async) {
+                CompletableFuture.runAsync(() -> {
+                    try {
+                        crawlScheduler.executeAllSources();
+                    } catch (Exception e) {
+                        log.error("异步全平台采集执行异常: {}", e.getMessage(), e);
+                    }
+                });
                 Map<String, Object> resp = new HashMap<>();
                 resp.put("message", "全平台异步采集已启动");
+                resp.put("enabledSources", enabledCount);
                 return Result.success(resp);
             }
-            return Result.success(crawlScheduler.executeAllSources());
+            Map<String, Object> result = crawlScheduler.executeAllSources();
+            result.put("enabledSources", enabledCount);
+            return Result.success(result);
         } catch (Exception e) {
+            log.error("执行全平台采集失败: {}", e.getMessage(), e);
             return Result.error("执行全平台采集失败: " + e.getMessage());
         }
     }

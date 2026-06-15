@@ -85,6 +85,36 @@ a {
     background: #f6ffed;
     color: #52c41a;
   }
+
+  &.wechat {
+    background: #f6ffed;
+    color: #07c160;
+  }
+
+  &.xiaohongshu {
+    background: #fff1f0;
+    color: #ff2442;
+  }
+
+  &.douyin {
+    background: #000;
+    color: #fff;
+  }
+
+  &.bilibili {
+    background: #e6f7ff;
+    color: #00aeec;
+  }
+
+  &.local_forum {
+    background: #fff7e6;
+    color: #fa8c16;
+  }
+
+  &.government {
+    background: #f6ffed;
+    color: #389e0d;
+  }
 }
 
 .hot-value {

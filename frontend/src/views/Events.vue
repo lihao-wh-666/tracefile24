@@ -115,6 +115,7 @@ import { useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import { getHotEventList, deleteHotEvent } from '@/api/event'
 import { usePlatformConfigStore } from '@/stores/platformConfig'
+import { getPlatformName } from '@/utils/platform'
 import dayjs from 'dayjs'
 import message from '@/utils/message'
 
@@ -173,12 +174,7 @@ const validateActiveSource = () => {
 }
 
 const getSourceName = (source) => {
-  const nameMap = {
-    weibo: '微博',
-    zhihu: '知乎',
-    baidu: '百度'
-  }
-  return nameMap[source] || source
+  return getPlatformName(source)
 }
 
 const formatHotValue = (value) => {

@@ -134,6 +134,7 @@ public class MultiPlatformCrawlerInitializer implements CommandLineRunner {
 
             DataSourceConfig dsc = dataSourceManager.getConfig(code);
             if (dsc != null) {
+                dataSourceManager.enableSource(code);
                 if (cfg.getCron() != null) dsc.setCron(cfg.getCron());
                 dsc.setMaxConcurrent(cfg.getMaxConcurrent());
                 dsc.setMaxItemsPerCrawl(cfg.getMaxItems());
@@ -142,7 +143,7 @@ public class MultiPlatformCrawlerInitializer implements CommandLineRunner {
                         dsc.setParam(p.getKey(), p.getValue());
                     }
                 }
-                log.debug("应用数据源配置: {} cron={} maxConcurrent={} maxItems={}",
+                log.info("数据源[{}]已启用并应用配置: cron={} maxConcurrent={} maxItems={}",
                         code, dsc.getCron(), dsc.getMaxConcurrent(), dsc.getMaxItemsPerCrawl());
             }
         }

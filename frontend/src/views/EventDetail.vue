@@ -47,6 +47,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getHotEventById } from '@/api/event'
+import { getPlatformName } from '@/utils/platform'
 import dayjs from 'dayjs'
 
 const route = useRoute()
@@ -68,12 +69,7 @@ const fetchEventDetail = async () => {
 }
 
 const getSourceName = (source) => {
-  const nameMap = {
-    weibo: '微博',
-    zhihu: '知乎',
-    baidu: '百度'
-  }
-  return nameMap[source] || source
+  return getPlatformName(source)
 }
 
 const formatHotValue = (value) => {

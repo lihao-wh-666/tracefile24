@@ -29,9 +29,12 @@
       <div class="filter-bar">
         <el-tabs v-model="activeSource" @tab-change="handleSourceChange">
           <el-tab-pane label="全部" name="all" />
-          <el-tab-pane label="微博" name="weibo" />
-          <el-tab-pane label="知乎" name="zhihu" />
-          <el-tab-pane label="百度" name="baidu" />
+          <el-tab-pane
+            v-for="platform in enabledPlatforms"
+            :key="platform.code"
+            :label="platform.name"
+            :name="platform.code"
+          />
         </el-tabs>
 
         <div class="time-filter">
@@ -118,9 +121,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { getCrawlRecordList, getCrawlStatistics } from '@/api/crawlRecord'
+import { usePlatformConfigStore } from '@/stores/platformConfig'
+import { getPlatformName } from '@/utils/platform'
 import dayjs from 'dayjs'
+
+const platformConfigStore = usePlatformConfigStore()
 
 const loading = ref(false)
 const recordList = ref([])
@@ -130,6 +137,8 @@ const pageSize = ref(20)
 const activeSource = ref('all')
 const days = ref(7)
 const stats = ref({})
+
+const enabledPlatforms = computed(() => platformConfigStore.enabledPlatforms)
 
 const fetchRecordList = async () => {
   loading.value = true
@@ -162,12 +171,7 @@ const fetchStatistics = async () => {
 }
 
 const getSourceName = (source) => {
-  const nameMap = {
-    weibo: '微博',
-    zhihu: '知乎',
-    baidu: '百度'
-  }
-  return nameMap[source] || source
+  return getPlatformName(source)
 }
 
 const formatTime = (time) => {
@@ -199,7 +203,9 @@ const handleCurrentChange = (page) => {
   fetchRecordList()
 }
 
-onMounted(() => {
+onMounted(async () => {
+  platformConfigStore.loadFromCache()
+  await platformConfigStore.fetchPlatformConfigs()
   fetchRecordList()
   fetchStatistics()
 })

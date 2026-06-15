@@ -88,6 +88,7 @@ import * as echarts from 'echarts'
 import { getEventStatistics } from '@/api/event'
 import { useCrawlerConfigStore } from '@/stores/crawlerConfig'
 import { usePlatformConfigStore } from '@/stores/platformConfig'
+import { getPlatformName, PLATFORM_COLORS } from '@/utils/platform'
 
 const router = useRouter()
 const crawlerConfigStore = useCrawlerConfigStore()
@@ -147,12 +148,7 @@ const fetchStatistics = async () => {
 }
 
 const getSourceName = (source) => {
-  const nameMap = {
-    weibo: '微博',
-    zhihu: '知乎',
-    baidu: '百度'
-  }
-  return nameMap[source] || source
+  return getPlatformName(source)
 }
 
 const formatHotValue = (value) => {
@@ -213,7 +209,7 @@ const renderSourceChart = () => {
           }
         },
         data: data,
-        color: ['#ff4d4f', '#1890ff', '#52c41a']
+        color: PLATFORM_COLORS
       }
     ]
   }

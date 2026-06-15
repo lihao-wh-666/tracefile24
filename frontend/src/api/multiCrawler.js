@@ -35,3 +35,19 @@ export function disablePlatform(code) {
     method: 'post'
   })
 }
+
+export function executeAllCrawl(async = true) {
+  return request({
+    url: '/multi-crawler/crawl/all',
+    method: 'post',
+    params: { async }
+  })
+}
+
+export function executeSourceCrawl(code, keyword, async = true) {
+  return request({
+    url: `/multi-crawler/crawl/${code}`,
+    method: 'post',
+    params: { keyword, async }
+  })
+}
