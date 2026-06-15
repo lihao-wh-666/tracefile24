@@ -26,6 +26,7 @@ public class BilibiliAdapter extends AbstractPlatformAdapter {
     private static final String SEARCH_API = "https://api.bilibili.com/x/web-interface/search/type";
     private static final String DETAIL_API = "https://api.bilibili.com/x/web-interface/view";
     private static final String VIDEO_STAT_API = "https://api.bilibili.com/x/web-interface/archive/stat";
+    private static final String DEFAULT_COOKIE = "buvid3=infoc; b_nut=1718438400; CURRENT_FNVAL=4048;";
 
     public BilibiliAdapter() {
         super();
@@ -64,13 +65,8 @@ public class BilibiliAdapter extends AbstractPlatformAdapter {
     protected String getListApiUrl(int page, int pageSize, String category, String keyword) {
         if (page == 1) {
             return HOT_RANK_API + "?rid=0&type=all";
-        } else if (page == 2) {
-            return POPULAR_API + "?ps=" + pageSize + "&pn=1";
-        } else if (page == 3) {
-            return VIKI_API;
         }
-        int pn = page - 1;
-        return POPULAR_API + "?ps=" + pageSize + "&pn=" + pn;
+        return POPULAR_API + "?ps=" + pageSize + "&pn=" + page;
     }
 
     @Override
@@ -96,13 +92,17 @@ public class BilibiliAdapter extends AbstractPlatformAdapter {
 
     @Override
     protected void customizeListRequest(CrawlRequest.CrawlRequestBuilder builder, int page, int pageSize, String category, String keyword) {
-        if (page == 3) {
-            return;
+        String referer;
+        if (page == 1) {
+            referer = BASE_URL + "/v/popular/rank/all";
+        } else {
+            referer = BASE_URL + "/v/popular/all/";
         }
         builder.header("Host", "api.bilibili.com")
-                .header("Referer", BASE_URL + "/v/popular/rank/all")
+                .header("Referer", referer)
                 .header("Origin", "https://www.bilibili.com")
-                .header("Accept", "application/json, text/plain, */*");
+                .header("Accept", "application/json, text/plain, */*")
+                .header("Cookie", DEFAULT_COOKIE);
     }
 
     @Override
@@ -294,6 +294,10 @@ public class BilibiliAdapter extends AbstractPlatformAdapter {
         if (like != null) hotValue += like * 4;
         if (share != null) hotValue += share * 15;
 
+        if (hotValue <= 0) {
+            hotValue = calculateDefaultHot(rank != null ? rank - 1 : 0, 100);
+        }
+
         List<String> tagList = new ArrayList<>();
         if (tname != null && !tname.isEmpty()) tagList.add(tname);
         if (pubLocation != null && !pubLocation.isEmpty()) tagList.add(pubLocation);
@@ -310,7 +314,7 @@ public class BilibiliAdapter extends AbstractPlatformAdapter {
                 .commentCount(reply)
                 .likeCount(like != null ? like : (danmaku != null && like == null ? danmaku : null))
                 .shareCount(share)
-                .hotValue(hotValue > 0 ? hotValue : null)
+                .hotValue(hotValue)
                 .hotRank(rank)
                 .category(tname.isEmpty() ? "B站视频" : tname)
                 .tags(String.join(",", tagList))
@@ -362,6 +366,13 @@ public class BilibiliAdapter extends AbstractPlatformAdapter {
             }
         }
         return di;
+    }
+
+    private long calculateDefaultHot(int index, int total) {
+        double base = 1000000.0;
+        double decay = Math.pow(0.95, index);
+        double jitter = (random.nextDouble() - 0.5) * 100000;
+        return Math.max(10000L, (long) (base * decay + jitter));
     }
 
     private String encode(String s) {

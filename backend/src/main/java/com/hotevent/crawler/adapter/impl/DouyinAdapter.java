@@ -21,9 +21,8 @@ public class DouyinAdapter extends AbstractPlatformAdapter {
     private static final String BASE_URL = "https://www.douyin.com";
 
     private static final String HOT_RANK_API = "https://60s.viki.moe/v2/douyin";
-    private static final String BACKUP_API = "https://60s.viki.moe/douyin";
+    private static final String BACKUP_API = "https://60s.viki.moe/v2/douyin";
     private static final String OFFICIAL_API = "https://www.douyin.com/aweme/v1/web/hot/search/list/";
-    private static final String FEED_API = "https://www.douyin.com/aweme/v1/web/hot/search/list/";
     private static final String SEARCH_API = "https://www.douyin.com/aweme/v1/web/general/search/single/";
     private static final String DETAIL_API = "https://www.douyin.com/aweme/v1/web/aweme/detail/";
 
@@ -65,8 +64,6 @@ public class DouyinAdapter extends AbstractPlatformAdapter {
     protected String getListApiUrl(int page, int pageSize, String category, String keyword) {
         if (page == 1) {
             return HOT_RANK_API;
-        } else if (page == 2) {
-            return BACKUP_API;
         }
         return OFFICIAL_API + "?device_platform=webapp&aid=6383&channel=channel_pc_web";
     }
