@@ -219,12 +219,11 @@ public class DataStorageService {
 
     private String getCategoryFromSource(String source) {
         switch (source) {
-            case "wechat": return "公众号";
-            case "xiaohongshu": return "小红书";
             case "douyin": return "抖音";
             case "bilibili": return "B站";
-            case "local_forum": return "本地论坛";
-            case "government": return "政务";
+            case "baidu": return "百度";
+            case "zhihu": return "知乎";
+            case "weibo": return "微博";
             default: return source;
         }
     }

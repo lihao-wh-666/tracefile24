@@ -14,22 +14,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DataSourceManager {
 
     @Autowired
-    private WeChatAdapter weChatAdapter;
-
-    @Autowired
-    private XiaohongshuAdapter xiaohongshuAdapter;
-
-    @Autowired
     private DouyinAdapter douyinAdapter;
 
     @Autowired
     private BilibiliAdapter bilibiliAdapter;
-
-    @Autowired
-    private LocalForumAdapter localForumAdapter;
-
-    @Autowired
-    private GovernmentPlatformAdapter governmentPlatformAdapter;
 
     @Autowired
     private BaiduAdapter baiduAdapter;
@@ -51,12 +39,8 @@ public class DataSourceManager {
             log.debug("DataSourceManager已初始化，跳过重复初始化");
             return;
         }
-        registerAdapter(weChatAdapter);
-        registerAdapter(xiaohongshuAdapter);
         registerAdapter(douyinAdapter);
         registerAdapter(bilibiliAdapter);
-        registerAdapter(localForumAdapter);
-        registerAdapter(governmentPlatformAdapter);
         registerAdapter(baiduAdapter);
         registerAdapter(zhihuAdapter);
         registerAdapter(weiboAdapter);
@@ -76,14 +60,6 @@ public class DataSourceManager {
     private List<DataSourceConfig> buildDefaultConfigs() {
         List<DataSourceConfig> configs = new ArrayList<>();
         configs.add(DataSourceConfig.builder()
-                .code("wechat").name("微信公众号").type("social_media")
-                .priority(3).enabled(true).maxConcurrent(2).maxRequestsPerHour(600)
-                .cron("0 0 */2 * * ?").build());
-        configs.add(DataSourceConfig.builder()
-                .code("xiaohongshu").name("小红书").type("social_media")
-                .priority(2).enabled(true).maxConcurrent(2).maxRequestsPerHour(800)
-                .cron("0 30 */1 * * ?").build());
-        configs.add(DataSourceConfig.builder()
                 .code("douyin").name("抖音").type("short_video")
                 .priority(1).enabled(true).maxConcurrent(3).maxRequestsPerHour(1200)
                 .cron("0 15 */1 * * ?").build());
@@ -91,14 +67,6 @@ public class DataSourceManager {
                 .code("bilibili").name("B站").type("short_video")
                 .priority(2).enabled(true).maxConcurrent(3).maxRequestsPerHour(1500)
                 .cron("0 0 */1 * * ?").build());
-        configs.add(DataSourceConfig.builder()
-                .code("local_forum").name("本地论坛").type("bbs")
-                .priority(4).enabled(true).maxConcurrent(2).maxRequestsPerHour(500)
-                .cron("0 0 */3 * * ?").build());
-        configs.add(DataSourceConfig.builder()
-                .code("government").name("政务平台").type("government")
-                .priority(3).enabled(true).maxConcurrent(2).maxRequestsPerHour(400)
-                .cron("0 0 8,12,18 * * ?").build());
         configs.add(DataSourceConfig.builder()
                 .code("baidu").name("百度").type("news")
                 .priority(1).enabled(true).maxConcurrent(3).maxRequestsPerHour(1500)

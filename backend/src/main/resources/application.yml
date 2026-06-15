@@ -98,12 +98,8 @@ hot-event:
       - weibo
       - zhihu
       - baidu
-      - wechat
-      - xiaohongshu
       - douyin
       - bilibili
-      - local_forum
-      - government
     timeout: 30000
     connect-timeout: 15000
     retry:
@@ -153,16 +149,6 @@ hot-event:
       respect-crawl-delay: true
       user-agent: "HotEventCrawler/1.0 (+https://example.com/bot.html)"
     platforms:
-      wechat:
-        enabled: true
-        cron: "0 0 */2 * * ?"
-        max-concurrent: 2
-        max-items: 50
-      xiaohongshu:
-        enabled: true
-        cron: "0 30 */1 * * ?"
-        max-concurrent: 2
-        max-items: 60
       douyin:
         enabled: true
         cron: "0 15 */1 * * ?"
@@ -173,18 +159,6 @@ hot-event:
         cron: "0 0 */1 * * ?"
         max-concurrent: 3
         max-items: 100
-      local_forum:
-        enabled: true
-        base-url: "https://bbs.example.com"
-        cron: "0 0 */3 * * ?"
-        max-concurrent: 2
-        max-items: 40
-      government:
-        enabled: true
-        base-url: "http://www.gov.cn"
-        cron: "0 0 8,12,18 * * ?"
-        max-concurrent: 2
-        max-items: 50
       baidu:
         enabled: true
         base-url: "https://top.baidu.com"

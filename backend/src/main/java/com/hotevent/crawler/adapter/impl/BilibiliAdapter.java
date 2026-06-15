@@ -20,9 +20,9 @@ public class BilibiliAdapter extends AbstractPlatformAdapter {
     private static final String PLATFORM_NAME = "B站";
     private static final String BASE_URL = "https://www.bilibili.com";
 
-    private static final String VIKI_API = "https://60s.viki.moe/bili";
     private static final String HOT_RANK_API = "https://api.bilibili.com/x/web-interface/ranking/v2";
     private static final String POPULAR_API = "https://api.bilibili.com/x/web-interface/popular";
+    private static final String VIKI_API = "https://60s.viki.moe/bili";
     private static final String SEARCH_API = "https://api.bilibili.com/x/web-interface/search/type";
     private static final String DETAIL_API = "https://api.bilibili.com/x/web-interface/view";
     private static final String VIDEO_STAT_API = "https://api.bilibili.com/x/web-interface/archive/stat";
@@ -63,13 +63,13 @@ public class BilibiliAdapter extends AbstractPlatformAdapter {
     @Override
     protected String getListApiUrl(int page, int pageSize, String category, String keyword) {
         if (page == 1) {
-            return VIKI_API;
-        } else if (page == 2) {
             return HOT_RANK_API + "?rid=0&type=all";
-        } else if (page == 3) {
+        } else if (page == 2) {
             return POPULAR_API + "?ps=" + pageSize + "&pn=1";
+        } else if (page == 3) {
+            return VIKI_API;
         }
-        int pn = page - 2;
+        int pn = page - 1;
         return POPULAR_API + "?ps=" + pageSize + "&pn=" + pn;
     }
 
@@ -96,12 +96,13 @@ public class BilibiliAdapter extends AbstractPlatformAdapter {
 
     @Override
     protected void customizeListRequest(CrawlRequest.CrawlRequestBuilder builder, int page, int pageSize, String category, String keyword) {
-        if (page == 1) {
+        if (page == 3) {
             return;
         }
         builder.header("Host", "api.bilibili.com")
-                .header("Referer", BASE_URL + "/")
-                .header("Origin", "https://www.bilibili.com");
+                .header("Referer", BASE_URL + "/v/popular/rank/all")
+                .header("Origin", "https://www.bilibili.com")
+                .header("Accept", "application/json, text/plain, */*");
     }
 
     @Override

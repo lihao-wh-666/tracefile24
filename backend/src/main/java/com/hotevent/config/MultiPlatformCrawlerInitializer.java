@@ -105,11 +105,8 @@ public class MultiPlatformCrawlerInitializer implements CommandLineRunner {
 
     private String getDomainForPlatform(String code) {
         return switch (code) {
-            case "wechat" -> "weixin.sogou.com";
-            case "xiaohongshu" -> "www.xiaohongshu.com";
             case "douyin" -> "www.douyin.com";
             case "bilibili" -> "api.bilibili.com";
-            case "government" -> "www.gov.cn";
             case "baidu" -> "top.baidu.com";
             case "zhihu" -> "www.zhihu.com";
             case "weibo" -> "weibo.com";
