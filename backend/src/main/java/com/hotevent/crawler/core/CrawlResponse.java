@@ -26,6 +26,7 @@ public class CrawlResponse {
     private String platform;
     private String taskId;
     private String requestId;
+    private CrawlRequest request;
     private String message;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
@@ -82,6 +83,7 @@ public class CrawlResponse {
         private String platform;
         private String taskId;
         private String requestId;
+        private CrawlRequest request;
         private String message;
         private LocalDateTime startTime;
         private LocalDateTime endTime;
@@ -116,6 +118,7 @@ public class CrawlResponse {
             resp.platform = this.platform;
             resp.taskId = this.taskId;
             resp.requestId = this.requestId;
+            resp.request = this.request;
             resp.message = this.message;
             resp.startTime = this.startTime;
             resp.endTime = this.endTime;

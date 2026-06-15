@@ -185,13 +185,21 @@ public class WeiboAdapter extends AbstractPlatformAdapter {
 
     private List<DataItem> parse60sViki(JSONObject json) {
         List<DataItem> items = new ArrayList<>();
-        JSONArray data = json.getJSONArray("data");
+        JSONArray data = null;
 
-        if (data == null && json.containsKey("data")) {
-            Object d = json.get("data");
-            if (d instanceof JSONObject) {
-                data = ((JSONObject) d).getJSONArray("list");
-                if (data == null) data = ((JSONObject) d).getJSONArray("data");
+        Object dataObj = json.get("data");
+        if (dataObj instanceof JSONArray) {
+            data = (JSONArray) dataObj;
+        } else if (dataObj instanceof JSONObject) {
+            JSONObject d = (JSONObject) dataObj;
+            Object listObj = d.get("list");
+            if (listObj instanceof JSONArray) {
+                data = (JSONArray) listObj;
+            } else {
+                Object innerDataObj = d.get("data");
+                if (innerDataObj instanceof JSONArray) {
+                    data = (JSONArray) innerDataObj;
+                }
             }
         }
 

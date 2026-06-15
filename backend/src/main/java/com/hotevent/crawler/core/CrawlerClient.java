@@ -48,6 +48,7 @@ public class CrawlerClient {
                 .platform(request.getPlatform())
                 .taskId(request.getTaskId())
                 .requestId(request.getRequestId())
+                .request(request)
                 .startTime(LocalDateTime.now());
 
         long startTime = System.currentTimeMillis();
