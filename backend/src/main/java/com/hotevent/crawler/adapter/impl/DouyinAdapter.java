@@ -20,8 +20,10 @@ public class DouyinAdapter extends AbstractPlatformAdapter {
     private static final String PLATFORM_NAME = "抖音";
     private static final String BASE_URL = "https://www.douyin.com";
 
+    private static final String HOT_RANK_API = "https://60s.viki.moe/v2/douyin";
+    private static final String BACKUP_API = "https://60s.viki.moe/douyin";
+    private static final String OFFICIAL_API = "https://www.douyin.com/aweme/v1/web/hot/search/list/";
     private static final String FEED_API = "https://www.douyin.com/aweme/v1/web/hot/search/list/";
-    private static final String HOT_VIDEO_API = "https://www.douyin.com/aweme/v1/web/hot/search/list/";
     private static final String SEARCH_API = "https://www.douyin.com/aweme/v1/web/general/search/single/";
     private static final String DETAIL_API = "https://www.douyin.com/aweme/v1/web/aweme/detail/";
 
@@ -61,7 +63,12 @@ public class DouyinAdapter extends AbstractPlatformAdapter {
 
     @Override
     protected String getListApiUrl(int page, int pageSize, String category, String keyword) {
-        return HOT_VIDEO_API + "?device_platform=webapp&aid=6383&channel=channel_pc_web";
+        if (page == 1) {
+            return HOT_RANK_API;
+        } else if (page == 2) {
+            return BACKUP_API;
+        }
+        return OFFICIAL_API + "?device_platform=webapp&aid=6383&channel=channel_pc_web";
     }
 
     @Override
@@ -84,6 +91,10 @@ public class DouyinAdapter extends AbstractPlatformAdapter {
 
     @Override
     protected void customizeListRequest(CrawlRequest.CrawlRequestBuilder builder, int page, int pageSize, String category, String keyword) {
+        if (page == 1 || page == 2) {
+            builder.header("Accept", "application/json, text/plain, */*");
+            return;
+        }
         builder.header("Host", "www.douyin.com")
                 .header("Referer", BASE_URL + "/")
                 .header("Origin", BASE_URL)
@@ -110,6 +121,13 @@ public class DouyinAdapter extends AbstractPlatformAdapter {
     protected List<DataItem> doParseList(JSONObject data, CrawlResponse response) {
         List<DataItem> items = new ArrayList<>();
         if (data == null) return items;
+
+        String requestUrl = response.getRequest() != null ? response.getRequest().getUrl() : "";
+
+        if (requestUrl.contains("60s.viki.moe")) {
+            List<DataItem> result = parse60sViki(data);
+            if (!result.isEmpty()) return result;
+        }
 
         JSONArray wordList = data.getByPath("data.word_list", JSONArray.class);
         if (wordList == null) wordList = data.getJSONArray("word_list");
@@ -297,6 +315,70 @@ public class DouyinAdapter extends AbstractPlatformAdapter {
                 .publishTime(parseTimestamp(aweme.getObj("create_time")))
                 .rawData(aweme.toString())
                 .build();
+    }
+
+    private List<DataItem> parse60sViki(JSONObject json) {
+        List<DataItem> items = new ArrayList<>();
+
+        JSONArray dataArr = null;
+        Object dataObj = json.get("data");
+        if (dataObj instanceof JSONArray) {
+            dataArr = (JSONArray) dataObj;
+        } else if (dataObj instanceof JSONObject) {
+            JSONObject d = (JSONObject) dataObj;
+            Object listObj = d.get("list");
+            if (listObj instanceof JSONArray) {
+                dataArr = (JSONArray) listObj;
+            } else {
+                Object innerDataObj = d.get("data");
+                if (innerDataObj instanceof JSONArray) {
+                    dataArr = (JSONArray) innerDataObj;
+                }
+            }
+        }
+
+        if (dataArr == null || dataArr.isEmpty()) return items;
+
+        for (int i = 0; i < dataArr.size(); i++) {
+            try {
+                JSONObject item = dataArr.getJSONObject(i);
+                String title = item.getStr("title", item.getStr("word", ""));
+                if (title == null || title.trim().isEmpty()) continue;
+
+                Long hotValue = item.getLong("hot_value", null);
+                if (hotValue == null) hotValue = item.getLong("hot", calculateDefaultHot(i, dataArr.size()));
+
+                String url = item.getStr("link", item.getStr("url", ""));
+                if (url == null || url.isEmpty()) url = BASE_URL + "/search/" + encode(title) + "?type=general";
+
+                String cover = item.getStr("cover", "");
+                String eventTime = item.getStr("event_time", "");
+
+                DataItem di = DataItem.builder()
+                        .itemId("douyin_" + (i + 1) + "_" + title.hashCode())
+                        .title(title.trim())
+                        .url(url)
+                        .coverImage(cover != null && !cover.isEmpty() ? cover : null)
+                        .hotValue(hotValue)
+                        .hotRank(i + 1)
+                        .rank(i + 1)
+                        .category("抖音热榜")
+                        .publishTime(eventTime != null && !eventTime.isEmpty() ? parseTimestamp(eventTime) : null)
+                        .rawData(item.toString())
+                        .build();
+                items.add(di);
+            } catch (Exception e) {
+                log.warn("[douyin-60s] 解析第{}项异常: {}", i + 1, e.getMessage());
+            }
+        }
+        return items;
+    }
+
+    private long calculateDefaultHot(int index, int total) {
+        double base = 800000.0;
+        double decay = Math.pow(0.94, index);
+        double jitter = (random.nextDouble() - 0.5) * 80000;
+        return Math.max(10000L, (long) (base * decay + jitter));
     }
 
     @Override

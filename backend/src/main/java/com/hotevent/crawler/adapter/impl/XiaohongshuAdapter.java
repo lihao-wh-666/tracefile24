@@ -23,23 +23,25 @@ public class XiaohongshuAdapter extends AbstractPlatformAdapter {
     private static final String PLATFORM_NAME = "小红书";
     private static final String BASE_URL = "https://www.xiaohongshu.com";
 
-    private static final String FEED_API = "https://edith.xiaohongshu.com/api/sns/web/v1/homefeed";
+    private static final String HOT_RANK_API = "https://60s.viki.moe/v2/xiaohongshu";
+    private static final String BACKUP_API = "https://60s.viki.moe/xiaohongshu";
+    private static final String OFFICIAL_API = "https://edith.xiaohongshu.com/api/sns/web/v1/homefeed";
     private static final String SEARCH_API = "https://edith.xiaohongshu.com/api/sns/web/v1/search/notes";
     private static final String DETAIL_API = "https://edith.xiaohongshu.com/api/sns/web/v1/feed";
 
     public XiaohongshuAdapter() {
         super();
-        this.authConfig.required = true;
+        this.authConfig.required = false;
         this.authConfig.loginUrl = BASE_URL + "/explore";
         this.authConfig.sessionCookieName = "web_session";
         this.authConfig.sessionExpireMinutes = 60 * 24 * 7;
-        this.antiCrawlConfig.requestIntervalMs = 2500;
-        this.antiCrawlConfig.pageIntervalMs = 4000;
+        this.antiCrawlConfig.requestIntervalMs = 2000;
+        this.antiCrawlConfig.pageIntervalMs = 3500;
         this.antiCrawlConfig.useRandomUserAgent = true;
         this.antiCrawlConfig.useRandomDelay = true;
-        this.antiCrawlConfig.rotateProxy = true;
-        this.antiCrawlConfig.supportJsRender = true;
-        this.antiCrawlConfig.maxDailyRequests = 5000;
+        this.antiCrawlConfig.rotateProxy = false;
+        this.antiCrawlConfig.supportJsRender = false;
+        this.antiCrawlConfig.maxDailyRequests = 10000;
     }
 
     @Override
@@ -64,7 +66,12 @@ public class XiaohongshuAdapter extends AbstractPlatformAdapter {
 
     @Override
     protected String getListApiUrl(int page, int pageSize, String category, String keyword) {
-        return FEED_API;
+        if (page == 1) {
+            return HOT_RANK_API;
+        } else if (page == 2) {
+            return BACKUP_API;
+        }
+        return OFFICIAL_API;
     }
 
     @Override
@@ -79,6 +86,11 @@ public class XiaohongshuAdapter extends AbstractPlatformAdapter {
 
     @Override
     protected void customizeListRequest(CrawlRequest.CrawlRequestBuilder builder, int page, int pageSize, String category, String keyword) {
+        if (page <= 2) {
+            builder.header("Referer", "https://www.xiaohongshu.com/explore")
+                    .header("Accept", "application/json, text/plain, */*");
+            return;
+        }
         builder.method(com.hotevent.crawler.http.HttpMethod.POST)
                 .contentType("application/json")
                 .body(buildListRequestBody(page, pageSize, category))
@@ -90,6 +102,12 @@ public class XiaohongshuAdapter extends AbstractPlatformAdapter {
 
     @Override
     protected void customizeSearchRequest(CrawlRequest.CrawlRequestBuilder builder, String keyword, int page, int pageSize) {
+        String url = builder.build().getUrl();
+        if (url != null && url.contains("viki.moe")) {
+            builder.header("Referer", "https://www.xiaohongshu.com/explore")
+                    .header("Accept", "application/json, text/plain, */*");
+            return;
+        }
         builder.method(com.hotevent.crawler.http.HttpMethod.POST)
                 .contentType("application/json")
                 .body(buildSearchRequestBody(keyword, page, pageSize))
@@ -137,6 +155,13 @@ public class XiaohongshuAdapter extends AbstractPlatformAdapter {
         List<DataItem> items = new ArrayList<>();
         if (data == null) return items;
 
+        String requestUrl = response.getRequest() != null ? response.getRequest().getUrl() : "";
+
+        if (requestUrl.contains("viki.moe")) {
+            List<DataItem> result = parse60sViki(data);
+            if (!result.isEmpty()) return result;
+        }
+
         JSONArray itemsArr = null;
         Object successData = data.get("data");
         if (successData instanceof JSONObject) {
@@ -162,6 +187,79 @@ public class XiaohongshuAdapter extends AbstractPlatformAdapter {
                 }
             } catch (Exception e) {
                 log.warn("[xiaohongshu] 解析第{}条笔记异常: {}", i, e.getMessage());
+            }
+        }
+        return items;
+    }
+
+    private List<DataItem> parse60sViki(JSONObject json) {
+        List<DataItem> items = new ArrayList<>();
+        JSONArray data = null;
+
+        Object dataObj = json.get("data");
+        if (dataObj instanceof JSONArray) {
+            data = (JSONArray) dataObj;
+        } else if (dataObj instanceof JSONObject) {
+            JSONObject d = (JSONObject) dataObj;
+            Object listObj = d.get("list");
+            if (listObj instanceof JSONArray) {
+                data = (JSONArray) listObj;
+            } else {
+                Object innerDataObj = d.get("data");
+                if (innerDataObj instanceof JSONArray) {
+                    data = (JSONArray) innerDataObj;
+                }
+            }
+        }
+
+        if (data == null || data.isEmpty()) return items;
+
+        for (int i = 0; i < data.size(); i++) {
+            try {
+                JSONObject item = data.getJSONObject(i);
+                String title = item.getStr("title",
+                        item.getStr("show_name",
+                                item.getStr("keyword",
+                                        item.getStr("word", ""))));
+                if (title == null || title.trim().isEmpty()) continue;
+
+                Long hot = item.getLong("hot_value",
+                        item.getLong("hot",
+                                item.getLong("num", calculateDefaultHot(i, data.size()))));
+
+                String url = item.getStr("url", item.getStr("link", ""));
+                String noteId = item.getStr("note_id", item.getStr("id", ""));
+                if ((url == null || url.isEmpty()) && !noteId.isEmpty()) {
+                    url = BASE_URL + "/explore/" + noteId;
+                }
+                if (url == null || url.isEmpty()) {
+                    url = BASE_URL + "/search_result?keyword=" + encode(title);
+                }
+
+                String cover = item.getStr("cover", item.getStr("cover_image", null));
+                String desc = item.getStr("desc", item.getStr("description", ""));
+                String nickname = null;
+                JSONObject user = item.getJSONObject("user");
+                if (user != null) {
+                    nickname = user.getStr("nickname", user.getStr("name", null));
+                }
+
+                DataItem di = DataItem.builder()
+                        .itemId(!noteId.isEmpty() ? noteId : "xhs_" + (i + 1) + "_" + title.hashCode())
+                        .title(title.trim())
+                        .content(desc != null ? desc : "")
+                        .url(url)
+                        .coverImage(cover)
+                        .author(nickname)
+                        .hotValue(hot)
+                        .hotRank(i + 1)
+                        .rank(i + 1)
+                        .category("小红书热搜")
+                        .rawData(item.toString())
+                        .build();
+                items.add(di);
+            } catch (Exception e) {
+                log.warn("[xiaohongshu-60s] 解析第{}项异常: {}", i + 1, e.getMessage());
             }
         }
         return items;
@@ -287,5 +385,12 @@ public class XiaohongshuAdapter extends AbstractPlatformAdapter {
         } catch (Exception e) {
             return s;
         }
+    }
+
+    private Long calculateDefaultHot(int index, int total) {
+        double base = 500000.0;
+        double decay = Math.pow(0.94, index);
+        double jitter = (random.nextDouble() - 0.5) * 50000;
+        return Math.max(5000L, (long) (base * decay + jitter));
     }
 }

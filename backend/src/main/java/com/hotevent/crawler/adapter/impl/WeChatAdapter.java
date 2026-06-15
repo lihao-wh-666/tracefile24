@@ -26,6 +26,7 @@ public class WeChatAdapter extends AbstractPlatformAdapter {
 
     private static final String SEARCH_API = "https://weixin.sogou.com/weixin";
     private static final String ARTICLE_LIST_API = "https://mp.weixin.qq.com/mp/profile_ext";
+    private static final String HOT_ARTICLES_URL = "https://weixin.sogou.com/weixin?type=1&ie=utf8";
 
     public WeChatAdapter() {
         super();
@@ -61,6 +62,9 @@ public class WeChatAdapter extends AbstractPlatformAdapter {
     @Override
     protected String getListApiUrl(int page, int pageSize, String category, String keyword) {
         try {
+            if ((keyword == null || keyword.isEmpty()) && page == 1) {
+                return HOT_ARTICLES_URL;
+            }
             StringBuilder url = new StringBuilder(SEARCH_API + "?type=2");
             if (keyword != null && !keyword.isEmpty()) {
                 url.append("&query=").append(URLEncoder.encode(keyword, StandardCharsets.UTF_8.name()));
@@ -86,6 +90,10 @@ public class WeChatAdapter extends AbstractPlatformAdapter {
     protected void customizeListRequest(CrawlRequest.CrawlRequestBuilder builder, int page, int pageSize, String category, String keyword) {
         builder.header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
         builder.header("Host", "weixin.sogou.com");
+        if ((keyword == null || keyword.isEmpty()) && page == 1) {
+            builder.header("Referer", "https://weixin.sogou.com/");
+            builder.header("Accept-Language", "zh-CN,zh;q=0.9");
+        }
     }
 
     @Override
@@ -96,6 +104,9 @@ public class WeChatAdapter extends AbstractPlatformAdapter {
     @Override
     protected List<DataItem> doParseList(JSONObject data, CrawlResponse response) {
         List<DataItem> items = new ArrayList<>();
+        if (isHotArticlesResponse(response)) {
+            return parseHotRankHtml(response, items);
+        }
         if (data == null) return parseHtmlFallback(response, items);
 
         JSONArray list = null;
@@ -126,6 +137,67 @@ public class WeChatAdapter extends AbstractPlatformAdapter {
             } catch (Exception e) {
                 log.warn("[wechat] 解析第{}条列表项异常: {}", i, e.getMessage());
             }
+        }
+        return items;
+    }
+
+    private boolean isHotArticlesResponse(CrawlResponse response) {
+        if (response == null || response.getRequestId() == null) return false;
+        String url = response.getRequestId();
+        return url.contains("type=1") && url.contains("weixin.sogou.com");
+    }
+
+    private List<DataItem> parseHotRankHtml(CrawlResponse response, List<DataItem> items) {
+        try {
+            if (response == null || response.getRawResponse() == null) return items;
+            String html = response.getRawResponse().getBody();
+            if (html == null || html.isEmpty()) return items;
+
+            org.jsoup.nodes.Document doc = org.jsoup.Jsoup.parse(html);
+            org.jsoup.select.Elements newsList = doc.select(".news-list li, .news-list2 li");
+            if (newsList.isEmpty()) {
+                newsList = doc.select(".txt-box");
+            }
+            int rank = 0;
+            for (org.jsoup.nodes.Element li : newsList) {
+                try {
+                    org.jsoup.nodes.Element linkEl = li.selectFirst("h3 a, .txt-box h3 a");
+                    if (linkEl == null) continue;
+
+                    String title = linkEl.text().trim();
+                    String url = linkEl.attr("data-share");
+                    if (url == null || url.isEmpty()) url = linkEl.absUrl("href");
+
+                    org.jsoup.nodes.Element summaryEl = li.selectFirst(".txt-info, .s-p .s2");
+                    String summary = summaryEl != null ? summaryEl.text().trim() : null;
+
+                    org.jsoup.nodes.Element accountEl = li.selectFirst(".account, .s-p .account");
+                    String account = accountEl != null ? accountEl.text().trim() : null;
+
+                    org.jsoup.nodes.Element dateEl = li.selectFirst(".s2, .s-p time");
+                    String dateText = dateEl != null ? dateEl.text().trim() : null;
+
+                    org.jsoup.nodes.Element imgEl = li.selectFirst(".img-box img, .txt-box img");
+                    String cover = imgEl != null ? imgEl.absUrl("src") : null;
+
+                    DataItem di = DataItem.builder()
+                            .title(title)
+                            .url(url)
+                            .summary(summary)
+                            .author(account)
+                            .coverImage(cover)
+                            .publishTime(parseWechatDate(dateText))
+                            .category("微信热门")
+                            .hotRank(++rank)
+                            .build();
+                    items.add(di);
+                } catch (Exception e) {
+                    log.warn("[wechat] 热门文章解析单条异常: {}", e.getMessage());
+                }
+            }
+            log.info("[wechat] 热门文章解析完成, 共{}条", items.size());
+        } catch (Exception e) {
+            log.warn("[wechat] 热门文章HTML解析异常: {}", e.getMessage());
         }
         return items;
     }

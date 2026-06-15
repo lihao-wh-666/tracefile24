@@ -20,6 +20,7 @@ public class BilibiliAdapter extends AbstractPlatformAdapter {
     private static final String PLATFORM_NAME = "B站";
     private static final String BASE_URL = "https://www.bilibili.com";
 
+    private static final String VIKI_API = "https://60s.viki.moe/bili";
     private static final String HOT_RANK_API = "https://api.bilibili.com/x/web-interface/ranking/v2";
     private static final String POPULAR_API = "https://api.bilibili.com/x/web-interface/popular";
     private static final String SEARCH_API = "https://api.bilibili.com/x/web-interface/search/type";
@@ -62,11 +63,14 @@ public class BilibiliAdapter extends AbstractPlatformAdapter {
     @Override
     protected String getListApiUrl(int page, int pageSize, String category, String keyword) {
         if (page == 1) {
+            return VIKI_API;
+        } else if (page == 2) {
             return HOT_RANK_API + "?rid=0&type=all";
+        } else if (page == 3) {
+            return POPULAR_API + "?ps=" + pageSize + "&pn=1";
         }
-        int pn = page - 1;
-        int ps = pageSize;
-        return POPULAR_API + "?ps=" + ps + "&pn=" + pn;
+        int pn = page - 2;
+        return POPULAR_API + "?ps=" + pageSize + "&pn=" + pn;
     }
 
     @Override
@@ -92,6 +96,9 @@ public class BilibiliAdapter extends AbstractPlatformAdapter {
 
     @Override
     protected void customizeListRequest(CrawlRequest.CrawlRequestBuilder builder, int page, int pageSize, String category, String keyword) {
+        if (page == 1) {
+            return;
+        }
         builder.header("Host", "api.bilibili.com")
                 .header("Referer", BASE_URL + "/")
                 .header("Origin", "https://www.bilibili.com");
@@ -112,10 +119,22 @@ public class BilibiliAdapter extends AbstractPlatformAdapter {
     @Override
     protected List<DataItem> doParseList(JSONObject data, CrawlResponse response) {
         List<DataItem> items = new ArrayList<>();
-        if (data == null || data.getInt("code", -1) != 0) {
+        if (data == null) return items;
+
+        String requestUrl = response.getRequest() != null ? response.getRequest().getUrl() : "";
+
+        if (requestUrl.contains("60s.viki.moe") || requestUrl.contains("viki.moe")) {
+            List<DataItem> vikiItems = parseVikiApi(data);
+            if (!vikiItems.isEmpty()) {
+                return vikiItems;
+            }
+            log.warn("[bilibili] viki.moe解析为空，回退到官方API解析");
+        }
+
+        if (data.getInt("code", -1) != 0) {
             log.warn("[bilibili] 接口返回错误: code={} msg={}",
-                    data != null ? data.getInt("code") : "null",
-                    data != null ? data.getStr("message") : "no response");
+                    data.getInt("code"),
+                    data.getStr("message"));
             return items;
         }
 
@@ -146,6 +165,70 @@ public class BilibiliAdapter extends AbstractPlatformAdapter {
                 }
             } catch (Exception e) {
                 log.warn("[bilibili] 解析第{}项异常: {}", i, e.getMessage());
+            }
+        }
+        return items;
+    }
+
+    private List<DataItem> parseVikiApi(JSONObject json) {
+        List<DataItem> items = new ArrayList<>();
+
+        Integer status = json.getInt("status");
+        if (status != null && status != 200) {
+            log.warn("[bilibili-viki] 接口状态码异常: {}", status);
+            return items;
+        }
+
+        JSONArray dataArray = null;
+        Object dataObj = json.get("data");
+        if (dataObj instanceof JSONArray) {
+            dataArray = (JSONArray) dataObj;
+        } else if (dataObj instanceof JSONObject) {
+            JSONObject d = (JSONObject) dataObj;
+            Object listObj = d.get("list");
+            if (listObj instanceof JSONArray) {
+                dataArray = (JSONArray) listObj;
+            } else {
+                Object innerDataObj = d.get("data");
+                if (innerDataObj instanceof JSONArray) {
+                    dataArray = (JSONArray) innerDataObj;
+                }
+            }
+        }
+
+        if (dataArray == null || dataArray.isEmpty()) return items;
+
+        for (int i = 0; i < dataArray.size(); i++) {
+            try {
+                JSONObject item = dataArray.getJSONObject(i);
+                String keyword = item.getStr("keyword", "");
+                String showName = item.getStr("show_name", "");
+                String title = showName != null && !showName.isEmpty() ? showName : keyword;
+                if (title == null || title.trim().isEmpty()) continue;
+
+                Integer position = item.getInt("position", i + 1);
+                String hotId = item.getStr("hot_id", "");
+                String icon = item.getStr("icon", "");
+
+                String url;
+                try {
+                    url = BASE_URL + "/search?keyword=" + java.net.URLEncoder.encode(keyword, "UTF-8");
+                } catch (Exception e) {
+                    url = BASE_URL + "/search?keyword=" + keyword;
+                }
+
+                DataItem di = DataItem.builder()
+                        .itemId(hotId != null && !hotId.isEmpty() ? hotId : "bili_hot_" + (i + 1))
+                        .title(title.trim())
+                        .url(url)
+                        .hotRank(position != null ? position : i + 1)
+                        .coverImage(icon != null && !icon.isEmpty() ? icon : null)
+                        .category("B站热搜")
+                        .rawData(item.toString())
+                        .build();
+                items.add(di);
+            } catch (Exception e) {
+                log.warn("[bilibili-viki] 解析第{}项异常: {}", i + 1, e.getMessage());
             }
         }
         return items;

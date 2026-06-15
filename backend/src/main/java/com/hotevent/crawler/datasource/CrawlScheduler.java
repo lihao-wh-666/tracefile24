@@ -6,6 +6,8 @@ import com.hotevent.crawler.monitor.CrawlMonitor;
 import com.hotevent.crawler.storage.IncrementalCrawlManager;
 import com.hotevent.crawler.storage.DataStorageService;
 import com.hotevent.crawler.compliance.RobotsComplianceManager;
+import com.hotevent.entity.CrawlRecord;
+import com.hotevent.repository.CrawlRecordRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -27,6 +29,9 @@ public class CrawlScheduler {
 
     @Autowired
     private CrawlMonitor crawlMonitor;
+
+    @Autowired
+    private CrawlRecordRepository crawlRecordRepository;
 
     @Autowired
     private IncrementalCrawlManager incrementalManager;
@@ -178,6 +183,8 @@ public class CrawlScheduler {
             long cost = System.currentTimeMillis() - globalStart;
             crawlMonitor.onTaskCompleted(task, successReq.get(), failReq.get(), totalItems.get(), cost);
 
+            saveCrawlRecord(code, "success", saved, successReq.get(), failReq.get(), null, cost);
+
             log.info("========== 数据源[{}]采集完成: 成功{}项, 失败{}项, 采集{}条, 耗时{}ms ==========",
                     code, successReq.get(), failReq.get(), totalItems.get(), cost);
             return task;
@@ -186,6 +193,7 @@ public class CrawlScheduler {
             task.setStatus(CrawlTask.TaskStatus.FAILED);
             task.setLastError(e.getMessage());
             crawlMonitor.onTaskFailed(task, e);
+            saveCrawlRecord(code, "failed", 0, 0, 1, e.getMessage(), System.currentTimeMillis() - globalStart);
             log.error("数据源[{}]采集任务异常: {}", code, e.getMessage(), e);
             throw e;
         } finally {
@@ -229,6 +237,26 @@ public class CrawlScheduler {
                     new ThreadPoolExecutor.CallerRunsPolicy()
             );
             log.info("CrawlScheduler自动初始化完成，线程池大小: {}", poolSize);
+        }
+    }
+
+    private void saveCrawlRecord(String source, String status, int eventCount,
+                                  int successCount, int failCount, String errorMessage, long costTimeMs) {
+        try {
+            CrawlRecord record = new CrawlRecord();
+            record.setSource(source);
+            record.setStatus(status);
+            record.setEventCount(eventCount);
+            record.setSuccessCount(successCount);
+            record.setFailCount(failCount);
+            record.setErrorMessage(errorMessage != null && errorMessage.length() > 2000
+                    ? errorMessage.substring(0, 2000) : errorMessage);
+            record.setCostTimeMs(costTimeMs);
+            record.setCrawlTime(LocalDateTime.now());
+            crawlRecordRepository.save(record);
+            log.debug("[{}] 抓取记录已保存: status={}, events={}, cost={}ms", source, status, eventCount, costTimeMs);
+        } catch (Exception e) {
+            log.warn("[{}] 保存抓取记录失败: {}", source, e.getMessage());
         }
     }
 
