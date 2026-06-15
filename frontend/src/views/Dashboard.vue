@@ -18,7 +18,7 @@
       <el-col :span="6">
         <div class="stat-card">
           <div class="stat-label">数据源数量</div>
-          <div class="stat-value">{{ sourceCount }}</div>
+          <div class="stat-value">{{ filteredSourceCount }}</div>
         </div>
       </el-col>
       <el-col :span="6">
@@ -59,7 +59,7 @@
           </div>
           <div class="hot-list">
             <div
-              v-for="(event, index) in topEvents"
+              v-for="(event, index) in filteredTopEvents"
               :key="event.id"
               class="hot-item"
               @click="goToDetail(event.id)"
@@ -73,7 +73,7 @@
                 </div>
               </div>
             </div>
-            <el-empty v-if="!topEvents || topEvents.length === 0" description="暂无数据" />
+            <el-empty v-if="!filteredTopEvents || filteredTopEvents.length === 0" description="暂无数据" />
           </div>
         </div>
       </el-col>
@@ -82,14 +82,16 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import * as echarts from 'echarts'
 import { getEventStatistics } from '@/api/event'
 import { useCrawlerConfigStore } from '@/stores/crawlerConfig'
+import { usePlatformConfigStore } from '@/stores/platformConfig'
 
 const router = useRouter()
 const crawlerConfigStore = useCrawlerConfigStore()
+const platformConfigStore = usePlatformConfigStore()
 
 const statistics = ref({})
 const topEvents = ref([])
@@ -101,6 +103,32 @@ let categoryChart = null
 const sourceCount = ref(0)
 const topEventsCount = ref(0)
 const todayCrawlCount = ref(0)
+
+const enabledPlatformCodes = computed(() => platformConfigStore.enabledPlatformCodes)
+
+const filteredSourceStats = computed(() => {
+  const sourceStats = statistics.value.sourceStats || {}
+  if (enabledPlatformCodes.value.length > 0) {
+    const filtered = {}
+    enabledPlatformCodes.value.forEach(code => {
+      if (sourceStats[code] !== undefined) {
+        filtered[code] = sourceStats[code]
+      }
+    })
+    return filtered
+  }
+  return sourceStats
+})
+
+const filteredTopEvents = computed(() => {
+  const events = topEvents.value || []
+  if (enabledPlatformCodes.value.length > 0) {
+    return events.filter(event => enabledPlatformCodes.value.includes(event.source))
+  }
+  return events
+})
+
+const filteredSourceCount = computed(() => Object.keys(filteredSourceStats.value).length)
 
 const fetchStatistics = async () => {
   try {
@@ -148,8 +176,7 @@ const renderSourceChart = () => {
 
   sourceChart = echarts.init(sourceChartRef.value)
 
-  const sourceStats = statistics.value.sourceStats || {}
-  const data = Object.entries(sourceStats).map(([key, value]) => ({
+  const data = Object.entries(filteredSourceStats.value).map(([key, value]) => ({
     name: getSourceName(key),
     value: value
   }))
@@ -249,7 +276,9 @@ const handleResize = () => {
   categoryChart && categoryChart.resize()
 }
 
-onMounted(() => {
+onMounted(async () => {
+  platformConfigStore.loadFromCache()
+  await platformConfigStore.fetchPlatformConfigs()
   fetchStatistics()
   crawlerConfigStore.fetchCrawlIntervalConfig()
   window.addEventListener('resize', handleResize)

@@ -234,12 +234,14 @@ import {
 } from '@/api/multiCrawler'
 import { useMessageConfigStore } from '@/stores/messageConfig'
 import { useCrawlerConfigStore } from '@/stores/crawlerConfig'
+import { usePlatformConfigStore } from '@/stores/platformConfig'
 import message from '@/utils/message'
 
 const SYSTEM_CONFIG_KEYS = ['maxLoginAttempts', 'loginLockMinutes', 'loginAttemptWindowMinutes', 'sessionTimeoutMinutes', 'sessionWarningMinutes', 'messageDuration', 'crawlIntervalMinutes']
 
 const messageConfigStore = useMessageConfigStore()
 const crawlerConfigStore = useCrawlerConfigStore()
+const platformConfigStore = usePlatformConfigStore()
 
 const activeTab = ref('system')
 
@@ -339,8 +341,8 @@ const fetchList = async () => {
 const fetchPlatformList = async () => {
   platformLoading.value = true
   try {
-    const data = await getPlatformConfigs()
-    platformList.value = data.map(item => ({
+    const data = await platformConfigStore.fetchPlatformConfigs()
+    platformList.value = (data || []).map(item => ({
       ...item,
       switchLoading: false,
       editing: false,
@@ -444,10 +446,10 @@ const handlePlatformToggle = async (row, val) => {
   row.switchLoading = true
   try {
     if (val) {
-      await enablePlatform(row.code)
+      await platformConfigStore.enablePlatform(row.code)
       message.success(`已启用 ${row.name}`)
     } else {
-      await disablePlatform(row.code)
+      await platformConfigStore.disablePlatform(row.code)
       message.success(`已禁用 ${row.name}`)
     }
   } catch (error) {
@@ -505,9 +507,9 @@ const handlePlatformSubmit = async () => {
       platformSubmitting.value = true
       try {
         if (platformForm.enabled) {
-          await enablePlatform(currentPlatformCode.value)
+          await platformConfigStore.enablePlatform(currentPlatformCode.value)
         } else {
-          await disablePlatform(currentPlatformCode.value)
+          await platformConfigStore.disablePlatform(currentPlatformCode.value)
         }
         await updatePlatformConfig(currentPlatformCode.value, {
           intervalMinutes: platformForm.intervalMinutes,

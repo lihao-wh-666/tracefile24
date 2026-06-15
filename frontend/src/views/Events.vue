@@ -8,9 +8,12 @@
       <div class="filter-bar">
         <el-tabs v-model="activeSource" @tab-change="handleSourceChange">
           <el-tab-pane label="全部" name="all" />
-          <el-tab-pane label="微博" name="weibo" />
-          <el-tab-pane label="知乎" name="zhihu" />
-          <el-tab-pane label="百度" name="baidu" />
+          <el-tab-pane
+            v-for="platform in enabledPlatforms"
+            :key="platform.code"
+            :label="platform.name"
+            :name="platform.code"
+          />
         </el-tabs>
 
         <div class="search-bar">
@@ -107,22 +110,35 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import { getHotEventList, deleteHotEvent } from '@/api/event'
+import { usePlatformConfigStore } from '@/stores/platformConfig'
 import dayjs from 'dayjs'
 import message from '@/utils/message'
 
 const router = useRouter()
+const platformConfigStore = usePlatformConfigStore()
 
 const loading = ref(false)
-const eventList = ref([])
+const rawEventList = ref([])
 const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(20)
 const activeSource = ref('all')
 const searchKeyword = ref('')
+
+const enabledPlatforms = computed(() => platformConfigStore.enabledPlatforms)
+const enabledPlatformCodes = computed(() => platformConfigStore.enabledPlatformCodes)
+
+const eventList = computed(() => {
+  let list = rawEventList.value
+  if (enabledPlatformCodes.value.length > 0) {
+    list = list.filter(event => enabledPlatformCodes.value.includes(event.source))
+  }
+  return list
+})
 
 const fetchEventList = async () => {
   loading.value = true
@@ -141,12 +157,18 @@ const fetchEventList = async () => {
     }
 
     const data = await getHotEventList(params)
-    eventList.value = data.records || []
+    rawEventList.value = data.records || []
     total.value = data.total || 0
   } catch (error) {
     console.error('获取热点事件列表失败', error)
   } finally {
     loading.value = false
+  }
+}
+
+const validateActiveSource = () => {
+  if (activeSource.value !== 'all' && !enabledPlatformCodes.value.includes(activeSource.value)) {
+    activeSource.value = 'all'
   }
 }
 
@@ -215,8 +237,19 @@ const handleDelete = async (id) => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  platformConfigStore.loadFromCache()
+  await platformConfigStore.fetchPlatformConfigs()
+  validateActiveSource()
   fetchEventList()
+})
+
+const unwatchEnabledPlatforms = watch(enabledPlatformCodes, () => {
+  validateActiveSource()
+}, { deep: true })
+
+onUnmounted(() => {
+  unwatchEnabledPlatforms()
 })
 </script>
 
