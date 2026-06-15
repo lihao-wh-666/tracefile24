@@ -247,7 +247,6 @@ public class HttpClientWrapper {
         builder.header("User-Agent", ua);
         builder.header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8");
         builder.header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8");
-        builder.header("Accept-Encoding", "gzip, deflate, br");
         builder.header("Connection", "keep-alive");
         builder.header("Cache-Control", "no-cache");
         builder.header("Pragma", "no-cache");

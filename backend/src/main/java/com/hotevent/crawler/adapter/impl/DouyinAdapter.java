@@ -9,6 +9,8 @@ import com.hotevent.crawler.core.DataItem;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -141,20 +143,42 @@ public class DouyinAdapter extends AbstractPlatformAdapter {
                     if (hotValue == null) hotValue = parseLongValue(item.getObj("event_value"));
 
                     String label = item.getStr("label", "");
-                    String[] labels = null;
-                    if (label != null && !label.isEmpty()) {
-                        labels = new String[]{label};
+                    String sentence = item.getStr("sentence", item.getStr("summary", ""));
+                    Object timestamp = item.getObj("timestamp");
+
+                    ++rank;
+
+                    StringBuilder summary = new StringBuilder();
+                    summary.append("【抖音热榜第").append(rank).append("名】").append(word.trim());
+                    if (sentence != null && !sentence.trim().isEmpty()) {
+                        summary.append("。").append(sentence.trim());
                     }
+                    summary.append("。当前热度值: ").append(hotValue != null ? formatHotValue(hotValue) : "暂无数据");
+
+                    StringBuilder content = new StringBuilder(summary);
+                    content.append("\n\n=== 详细信息 ===\n");
+                    content.append("关键词: ").append(word.trim()).append("\n");
+                    content.append("排名: 第").append(rank).append("名\n");
+                    content.append("热度: ").append(hotValue != null ? formatHotValue(hotValue) : "暂无").append("\n");
+                    if (label != null && !label.isEmpty()) {
+                        content.append("标签: ").append(label).append("\n");
+                    }
+                    if (sentence != null && !sentence.trim().isEmpty()) {
+                        content.append("简介: ").append(sentence.trim()).append("\n");
+                    }
+                    content.append("搜索链接: ").append(BASE_URL).append("/search/").append(encode(word)).append("?type=general\n");
 
                     DataItem di = DataItem.builder()
-                            .title(word)
+                            .title(word.trim())
+                            .summary(summary.toString())
+                            .content(content.toString())
                             .url(BASE_URL + "/search/" + encode(word) + "?type=general")
-                            .summary(item.getStr("sentence", ""))
                             .hotValue(hotValue)
-                            .hotRank(++rank)
+                            .hotRank(rank)
+                            .rank(rank)
                             .tags(label)
                             .category("抖音热榜")
-                            .publishTime(parseTimestamp(item.getObj("timestamp")))
+                            .publishTime(parseTimestamp(timestamp))
                             .rawData(item.toString())
                             .build();
 
@@ -162,8 +186,15 @@ public class DouyinAdapter extends AbstractPlatformAdapter {
                     if (event != null) {
                         di.putExtra("event_id", event.getStr("event_id"));
                         di.putExtra("event_level", event.getStr("event_level"));
-                        di.setViewCount(parseLongValue(event.getObj("view_count")));
+                        Long viewCount = parseLongValue(event.getObj("view_count"));
+                        di.setViewCount(viewCount);
+                        if (viewCount != null) {
+                            content.append("浏览量: ").append(formatHotValue(viewCount)).append("\n");
+                            di.setContent(content.toString());
+                        }
                     }
+                    di.putExtra("source", "douyin_official");
+                    di.putExtra("hot_value_formatted", hotValue != null ? formatHotValue(hotValue) : "");
                     items.add(di);
                 } catch (Exception e) {
                     log.warn("[douyin] 解析热榜第{}项异常: {}", i, e.getMessage());
@@ -350,25 +381,91 @@ public class DouyinAdapter extends AbstractPlatformAdapter {
 
                 String cover = item.getStr("cover", "");
                 String eventTime = item.getStr("event_time", "");
+                Object eventTimeAt = item.getObj("event_time_at");
+                Object activeTimeAt = item.getObj("active_time_at");
+                String activeTime = item.getStr("active_time", "");
+
+                String word = item.getStr("word", title);
+                String sentence = item.getStr("sentence", item.getStr("summary", ""));
+
+                StringBuilder summary = new StringBuilder();
+                summary.append("【抖音热榜第").append(i + 1).append("名】").append(title.trim());
+                if (sentence != null && !sentence.trim().isEmpty()) {
+                    summary.append("。").append(sentence.trim());
+                }
+                summary.append("。当前热度值: ").append(hotValue != null ? formatHotValue(hotValue) : "暂无数据");
+                if (eventTime != null && !eventTime.isEmpty()) {
+                    summary.append("。上榜时间: ").append(eventTime);
+                }
+
+                StringBuilder content = new StringBuilder(summary);
+                content.append("\n\n=== 详细信息 ===\n");
+                content.append("标题: ").append(title.trim()).append("\n");
+                content.append("排名: 第").append(i + 1).append("名\n");
+                content.append("热度: ").append(hotValue != null ? formatHotValue(hotValue) : "暂无").append("\n");
+                if (word != null && !word.equals(title)) {
+                    content.append("关键词: ").append(word).append("\n");
+                }
+                if (eventTime != null && !eventTime.isEmpty()) {
+                    content.append("上榜时间: ").append(eventTime).append("\n");
+                }
+                if (activeTime != null && !activeTime.isEmpty()) {
+                    content.append("活跃时间: ").append(activeTime).append("\n");
+                }
+                content.append("来源链接: ").append(url).append("\n");
+                if (cover != null && !cover.isEmpty()) {
+                    content.append("封面图: ").append(cover).append("\n");
+                }
+
+                LocalDateTime publishTime = null;
+                if (eventTimeAt != null) {
+                    publishTime = parseTimestamp(eventTimeAt);
+                }
+                if (publishTime == null && eventTime != null && !eventTime.isEmpty()) {
+                    publishTime = parseTimestamp(eventTime);
+                }
 
                 DataItem di = DataItem.builder()
-                        .itemId("douyin_" + (i + 1) + "_" + title.hashCode())
+                        .itemId("douyin_" + (i + 1) + "_" + Math.abs(title.hashCode()))
                         .title(title.trim())
+                        .summary(summary.toString())
+                        .content(content.toString())
                         .url(url)
                         .coverImage(cover != null && !cover.isEmpty() ? cover : null)
                         .hotValue(hotValue)
                         .hotRank(i + 1)
                         .rank(i + 1)
                         .category("抖音热榜")
-                        .publishTime(eventTime != null && !eventTime.isEmpty() ? parseTimestamp(eventTime) : null)
+                        .tags(word != null && !word.isEmpty() && !word.equals(title) ? word : null)
+                        .publishTime(publishTime)
                         .rawData(item.toString())
                         .build();
+
+                if (activeTimeAt != null) {
+                    di.putExtra("active_time_at", activeTimeAt);
+                }
+                if (eventTimeAt != null) {
+                    di.putExtra("event_time_at", eventTimeAt);
+                }
+                di.putExtra("source", "60s.viki.moe");
+                di.putExtra("hot_value_formatted", hotValue != null ? formatHotValue(hotValue) : "");
+
                 items.add(di);
             } catch (Exception e) {
                 log.warn("[douyin-60s] 解析第{}项异常: {}", i + 1, e.getMessage());
             }
         }
         return items;
+    }
+
+    private String formatHotValue(Long value) {
+        if (value == null) return "";
+        if (value >= 100000000) {
+            return String.format("%.2f亿", value / 100000000.0);
+        } else if (value >= 10000) {
+            return String.format("%.2f万", value / 10000.0);
+        }
+        return String.valueOf(value);
     }
 
     private long calculateDefaultHot(int index, int total) {

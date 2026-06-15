@@ -308,7 +308,6 @@ public abstract class AbstractPlatformAdapter implements PlatformAdapter {
         headers.put("User-Agent", getRandomUserAgent());
         headers.put("Accept", "application/json, text/plain, */*");
         headers.put("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8");
-        headers.put("Accept-Encoding", "gzip, deflate");
         headers.put("Cache-Control", "no-cache");
         headers.put("Pragma", "no-cache");
         headers.put("Connection", "keep-alive");
@@ -346,12 +345,63 @@ public abstract class AbstractPlatformAdapter implements PlatformAdapter {
             log.warn("[{}] 响应体为空", getPlatformCode());
             return null;
         }
+        String body = raw.getBody();
         try {
-            return JSONUtil.parseObj(raw.getBody());
+            body = cleanJsonBody(body);
+            if (log.isDebugEnabled()) {
+                String preview = body.length() > 200 ? body.substring(0, 200) + "..." : body;
+                log.debug("[{}] 响应体预览: {}", getPlatformCode(), preview);
+            }
+            return JSONUtil.parseObj(body);
         } catch (Exception e) {
-            log.warn("[{}] JSON解析失败，尝试HTML解析或处理其他格式: {}", getPlatformCode(), e.getMessage());
+            log.warn("[{}] JSON解析失败，body前100字符=[{}], 错误: {}", getPlatformCode(),
+                    body.length() > 100 ? body.substring(0, 100) : body, e.getMessage());
+            try {
+                String cleaned = aggressiveCleanJson(body);
+                if (!cleaned.equals(body)) {
+                    log.info("[{}] 尝试激进清洗后重新解析", getPlatformCode());
+                    return JSONUtil.parseObj(cleaned);
+                }
+            } catch (Exception e2) {
+                log.warn("[{}] 激进清洗后解析仍失败: {}", getPlatformCode(), e2.getMessage());
+            }
             return null;
         }
+    }
+
+    private String cleanJsonBody(String body) {
+        if (body == null) return null;
+        String cleaned = body;
+        if (cleaned.startsWith("\uFEFF")) {
+            cleaned = cleaned.substring(1);
+            log.debug("[{}] 去除UTF-8 BOM头", getPlatformCode());
+        }
+        cleaned = cleaned.trim();
+        while (!cleaned.isEmpty() && cleaned.charAt(0) != '{' && cleaned.charAt(0) != '[') {
+            cleaned = cleaned.substring(1);
+        }
+        while (!cleaned.isEmpty() && cleaned.charAt(cleaned.length() - 1) != '}' && cleaned.charAt(cleaned.length() - 1) != ']') {
+            cleaned = cleaned.substring(0, cleaned.length() - 1);
+        }
+        return cleaned;
+    }
+
+    private String aggressiveCleanJson(String body) {
+        if (body == null) return null;
+        int firstBrace = body.indexOf('{');
+        int firstBracket = body.indexOf('[');
+        int start = -1;
+        if (firstBrace >= 0 && firstBracket >= 0) {
+            start = Math.min(firstBrace, firstBracket);
+        } else if (firstBrace >= 0) {
+            start = firstBrace;
+        } else if (firstBracket >= 0) {
+            start = firstBracket;
+        }
+        if (start > 0) {
+            return body.substring(start).trim();
+        }
+        return body.trim();
     }
 
     protected void finalizeDataItem(DataItem item) {

@@ -208,31 +208,142 @@ public class BilibiliAdapter extends AbstractPlatformAdapter {
                 if (title == null || title.trim().isEmpty()) continue;
 
                 Integer position = item.getInt("position", i + 1);
+                int rank = position != null ? position : i + 1;
                 String hotId = item.getStr("hot_id", "");
                 String icon = item.getStr("icon", "");
+                Integer wordType = item.getInt("word_type");
+                String resourceId = item.getStr("resource_id", "");
+                Boolean showLiveIcon = item.getBool("show_live_icon", false);
+                String isCommercial = item.getStr("is_commercial", "");
+
+                Long hotValue = calculateDefaultHot(rank - 1, dataArray.size());
+
+                String typeLabel = resolveWordType(wordType);
 
                 String url;
+                String searchKeyword = keyword != null && !keyword.isEmpty() ? keyword : title;
                 try {
-                    url = BASE_URL + "/search?keyword=" + java.net.URLEncoder.encode(keyword, "UTF-8");
+                    url = BASE_URL + "/search?keyword=" + java.net.URLEncoder.encode(searchKeyword, "UTF-8");
                 } catch (Exception e) {
-                    url = BASE_URL + "/search?keyword=" + keyword;
+                    url = BASE_URL + "/search?keyword=" + searchKeyword;
                 }
 
+                if (resourceId != null && !resourceId.isEmpty()) {
+                    url = BASE_URL + "/video/" + resourceId;
+                }
+
+                String safeIcon = null;
+                if (icon != null && !icon.isEmpty()) {
+                    safeIcon = icon.startsWith("http://") ? icon.replaceFirst("http://", "https://") : icon;
+                }
+
+                StringBuilder summary = new StringBuilder();
+                summary.append("【B站热搜第").append(rank).append("名】").append(title.trim());
+                if (typeLabel != null) {
+                    summary.append(" [").append(typeLabel).append("]");
+                }
+                summary.append("。当前热度约: ").append(formatHotValue(hotValue));
+                if ("1".equals(isCommercial)) {
+                    summary.append("。注意：本条为商业推广内容");
+                }
+
+                StringBuilder content = new StringBuilder(summary);
+                content.append("\n\n=== 详细信息 ===\n");
+                content.append("标题: ").append(title.trim()).append("\n");
+                content.append("排名: 第").append(rank).append("名\n");
+                content.append("预估热度: ").append(formatHotValue(hotValue)).append("\n");
+                if (keyword != null && !keyword.isEmpty() && !keyword.equals(title)) {
+                    content.append("搜索关键词: ").append(keyword).append("\n");
+                }
+                if (typeLabel != null) {
+                    content.append("内容类型: ").append(typeLabel).append("\n");
+                }
+                if (hotId != null && !hotId.isEmpty()) {
+                    content.append("热搜ID: ").append(hotId).append("\n");
+                }
+                if (resourceId != null && !resourceId.isEmpty()) {
+                    content.append("关联资源: ").append(resourceId).append("\n");
+                }
+                if (showLiveIcon) {
+                    content.append("直播状态: 正在直播\n");
+                }
+                if ("1".equals(isCommercial)) {
+                    content.append("商业推广: 是\n");
+                }
+                content.append("来源链接: ").append(url).append("\n");
+                if (safeIcon != null) {
+                    content.append("图标: ").append(safeIcon).append("\n");
+                }
+
+                List<String> tagList = new ArrayList<>();
+                tagList.add("B站热搜");
+                if (typeLabel != null) tagList.add(typeLabel);
+                if (showLiveIcon) tagList.add("直播");
+
                 DataItem di = DataItem.builder()
-                        .itemId(hotId != null && !hotId.isEmpty() ? hotId : "bili_hot_" + (i + 1))
+                        .itemId(hotId != null && !hotId.isEmpty() ? "bili_" + hotId : "bili_hot_" + rank + "_" + Math.abs(title.hashCode()))
                         .title(title.trim())
+                        .summary(summary.toString())
+                        .content(content.toString())
                         .url(url)
-                        .hotRank(position != null ? position : i + 1)
-                        .coverImage(icon != null && !icon.isEmpty() ? icon : null)
+                        .hotValue(hotValue)
+                        .hotRank(rank)
+                        .rank(rank)
+                        .coverImage(safeIcon)
                         .category("B站热搜")
+                        .tags(String.join(",", tagList))
                         .rawData(item.toString())
                         .build();
+
+                di.putExtra("source", "60s.viki.moe");
+                di.putExtra("word_type", wordType);
+                di.putExtra("word_type_label", typeLabel);
+                di.putExtra("hot_value_formatted", formatHotValue(hotValue));
+                if (resourceId != null && !resourceId.isEmpty()) {
+                    di.putExtra("resource_id", resourceId);
+                }
+                if (showLiveIcon) {
+                    di.putExtra("is_live", true);
+                }
+                di.putExtra("is_commercial", "1".equals(isCommercial));
+
                 items.add(di);
             } catch (Exception e) {
                 log.warn("[bilibili-viki] 解析第{}项异常: {}", i + 1, e.getMessage());
             }
         }
         return items;
+    }
+
+    private String resolveWordType(Integer wordType) {
+        if (wordType == null) return null;
+        switch (wordType) {
+            case 1: return "新上榜";
+            case 2: return "热门话题";
+            case 3: return "热议话题";
+            case 4: return "娱乐新闻";
+            case 5: return "热点资讯";
+            case 6: return "知识科普";
+            case 7: return "直播内容";
+            case 8: return "社会新闻";
+            case 9: return "趣味内容";
+            case 10: return "游戏内容";
+            case 11: return "影视内容";
+            case 12: return "生活日常";
+            case 13: return "科技数码";
+            case 14: return "美食内容";
+            default: return "综合内容";
+        }
+    }
+
+    private String formatHotValue(Long value) {
+        if (value == null) return "";
+        if (value >= 100000000) {
+            return String.format("%.2f亿", value / 100000000.0);
+        } else if (value >= 10000) {
+            return String.format("%.2f万", value / 10000.0);
+        }
+        return String.valueOf(value);
     }
 
     private DataItem parseVideoItem(JSONObject item) {
@@ -245,6 +356,9 @@ public class BilibiliAdapter extends AbstractPlatformAdapter {
         String pic = item.getStr("pic", item.getStr("thumbnail", ""));
         if (pic != null && !pic.startsWith("http")) {
             pic = "https:" + pic;
+        }
+        if (pic != null && pic.startsWith("http://")) {
+            pic = pic.replaceFirst("http://", "https://");
         }
 
         JSONObject owner = item.getJSONObject("owner");
@@ -281,6 +395,7 @@ public class BilibiliAdapter extends AbstractPlatformAdapter {
         Integer rank = item.getInt("rank");
         Integer duration = item.getInt("duration");
         String pubLocation = item.getStr("pub_location", "");
+        String dynamic = item.getStr("dynamic", "");
 
         String shortLink = item.getStr("short_link_v2", item.getStr("short_link", ""));
         String url = !shortLink.isEmpty() ? shortLink : BASE_URL + "/video/" + (bvid.isEmpty() ? "av" + aid : bvid);
@@ -299,13 +414,86 @@ public class BilibiliAdapter extends AbstractPlatformAdapter {
         }
 
         List<String> tagList = new ArrayList<>();
+        tagList.add("B站视频");
         if (tname != null && !tname.isEmpty()) tagList.add(tname);
         if (pubLocation != null && !pubLocation.isEmpty()) tagList.add(pubLocation);
 
+        String rankStr = rank != null ? "第" + rank + "名" : "";
+
+        StringBuilder summary = new StringBuilder();
+        if (rank != null) {
+            summary.append("【B站排行榜").append(rankStr).append("】");
+        }
+        summary.append(title.trim());
+        if (!tname.isEmpty()) {
+            summary.append(" [").append(tname).append("]");
+        }
+        summary.append("。UP主: ").append(upName != null && !upName.isEmpty() ? upName : "未知");
+        summary.append("。播放量: ").append(view != null ? formatHotValue(view) : "暂无");
+        summary.append("，点赞: ").append(like != null ? formatHotValue(like) : "暂无");
+        if (desc != null && !desc.trim().isEmpty()) {
+            String shortDesc = desc.trim();
+            if (shortDesc.length() > 100) shortDesc = shortDesc.substring(0, 100) + "...";
+            summary.append("。简介: ").append(shortDesc);
+        }
+
+        StringBuilder content = new StringBuilder(summary);
+        content.append("\n\n=== 视频详细信息 ===\n");
+        content.append("标题: ").append(title.trim()).append("\n");
+        if (rank != null) {
+            content.append("排行榜位置: ").append(rankStr).append("\n");
+        }
+        content.append("分类: ").append(tname.isEmpty() ? "综合" : tname).append("\n");
+        if (upName != null && !upName.isEmpty()) {
+            content.append("UP主: ").append(upName);
+            if (mid != null && !mid.isEmpty()) {
+                content.append(" (UID: ").append(mid).append(")");
+            }
+            content.append("\n");
+        }
+        if (pubLocation != null && !pubLocation.isEmpty()) {
+            content.append("发布地点: ").append(pubLocation).append("\n");
+        }
+        content.append("\n--- 数据统计 ---\n");
+        content.append("播放量: ").append(view != null ? formatHotValue(view) : "暂无").append("\n");
+        content.append("弹幕数: ").append(danmaku != null ? formatHotValue(danmaku) : "暂无").append("\n");
+        content.append("评论数: ").append(reply != null ? formatHotValue(reply) : "暂无").append("\n");
+        content.append("点赞数: ").append(like != null ? formatHotValue(like) : "暂无").append("\n");
+        content.append("投币数: ").append(coin != null ? formatHotValue(coin) : "暂无").append("\n");
+        content.append("收藏数: ").append(favorite != null ? formatHotValue(favorite) : "暂无").append("\n");
+        content.append("分享数: ").append(share != null ? formatHotValue(share) : "暂无").append("\n");
+        content.append("综合热度: ").append(formatHotValue(hotValue)).append("\n");
+        if (duration != null && duration > 0) {
+            int min = duration / 60;
+            int sec = duration % 60;
+            content.append("视频时长: ").append(min).append("分").append(sec).append("秒\n");
+        }
+        if (desc != null && !desc.trim().isEmpty()) {
+            content.append("\n--- 视频简介 ---\n").append(desc.trim()).append("\n");
+        }
+        if (dynamic != null && !dynamic.trim().isEmpty()) {
+            content.append("\n--- UP主动态 ---\n").append(dynamic.trim()).append("\n");
+        }
+        content.append("\n--- 链接信息 ---\n");
+        content.append("视频地址: ").append(url).append("\n");
+        if (!shortLink.isEmpty()) {
+            content.append("短链接: ").append(shortLink).append("\n");
+        }
+        if (!bvid.isEmpty()) {
+            content.append("BV号: ").append(bvid).append("\n");
+        }
+        if (!aid.isEmpty()) {
+            content.append("AV号: av").append(aid).append("\n");
+        }
+        if (pic != null && !pic.isEmpty()) {
+            content.append("封面图: ").append(pic).append("\n");
+        }
+
         DataItem di = DataItem.builder()
                 .itemId(bvid.isEmpty() ? aid : bvid)
-                .title(title)
-                .content(desc)
+                .title(title.trim())
+                .summary(summary.toString())
+                .content(content.toString())
                 .url(url)
                 .author(upName)
                 .authorId(mid)
@@ -316,6 +504,7 @@ public class BilibiliAdapter extends AbstractPlatformAdapter {
                 .shareCount(share)
                 .hotValue(hotValue)
                 .hotRank(rank)
+                .rank(rank)
                 .category(tname.isEmpty() ? "B站视频" : tname)
                 .tags(String.join(",", tagList))
                 .publishTime(parseTimestamp(item.getObj("pubdate", item.getObj("created", item.getObj("senddate")))))
@@ -328,6 +517,10 @@ public class BilibiliAdapter extends AbstractPlatformAdapter {
         di.putExtra("favorite", favorite);
         di.putExtra("coin", coin);
         di.putExtra("duration", duration);
+        di.putExtra("source", "bilibili_official");
+        di.putExtra("hot_value_formatted", formatHotValue(hotValue));
+        di.putExtra("view_formatted", view != null ? formatHotValue(view) : "");
+        di.putExtra("like_formatted", like != null ? formatHotValue(like) : "");
 
         return di;
     }
