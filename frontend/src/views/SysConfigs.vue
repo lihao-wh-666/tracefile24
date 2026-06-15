@@ -307,24 +307,36 @@ const formatDate = (date) => {
   return date ? dayjs(date).format('YYYY-MM-DD HH:mm:ss') : '-'
 }
 
+const normalizeType = (type) => {
+  return type ? type.toLowerCase().replace(/_/g, '_') : type
+}
+
 const getPlatformTypeTag = (type) => {
+  const t = normalizeType(type)
   const typeMap = {
     social_media: '',
     short_video: 'warning',
     bbs: 'info',
-    government: 'success'
+    government: 'success',
+    news: 'danger',
+    blog: '',
+    ecommerce: 'warning'
   }
-  return typeMap[type] || 'info'
+  return typeMap[t] || 'info'
 }
 
 const getPlatformTypeName = (type) => {
+  const t = normalizeType(type)
   const nameMap = {
     social_media: '社交媒体',
     short_video: '短视频',
     bbs: '论坛',
-    government: '政务'
+    government: '政务',
+    news: '新闻资讯',
+    blog: '博客',
+    ecommerce: '电商'
   }
-  return nameMap[type] || type
+  return nameMap[t] || type
 }
 
 const fetchList = async () => {

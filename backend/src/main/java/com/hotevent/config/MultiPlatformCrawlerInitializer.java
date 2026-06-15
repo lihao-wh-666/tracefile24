@@ -110,6 +110,9 @@ public class MultiPlatformCrawlerInitializer implements CommandLineRunner {
             case "douyin" -> "www.douyin.com";
             case "bilibili" -> "api.bilibili.com";
             case "government" -> "www.gov.cn";
+            case "baidu" -> "top.baidu.com";
+            case "zhihu" -> "www.zhihu.com";
+            case "weibo" -> "weibo.com";
             default -> "localhost";
         };
     }

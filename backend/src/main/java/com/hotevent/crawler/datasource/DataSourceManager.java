@@ -31,6 +31,15 @@ public class DataSourceManager {
     @Autowired
     private GovernmentPlatformAdapter governmentPlatformAdapter;
 
+    @Autowired
+    private BaiduAdapter baiduAdapter;
+
+    @Autowired
+    private ZhihuAdapter zhihuAdapter;
+
+    @Autowired
+    private WeiboAdapter weiboAdapter;
+
     private final Map<String, PlatformAdapter> adapterRegistry = new ConcurrentHashMap<>();
     private final Map<String, DataSourceConfig> configRegistry = new ConcurrentHashMap<>();
     private final Set<String> enabledSources = Collections.synchronizedSet(new HashSet<>());
@@ -42,6 +51,9 @@ public class DataSourceManager {
         registerAdapter(bilibiliAdapter);
         registerAdapter(localForumAdapter);
         registerAdapter(governmentPlatformAdapter);
+        registerAdapter(baiduAdapter);
+        registerAdapter(zhihuAdapter);
+        registerAdapter(weiboAdapter);
 
         List<DataSourceConfig> defaultConfigs = buildDefaultConfigs();
         for (DataSourceConfig config : defaultConfigs) {
@@ -80,6 +92,18 @@ public class DataSourceManager {
                 .code("government").name("政务平台").type("government")
                 .priority(3).enabled(true).maxConcurrent(2).maxRequestsPerHour(400)
                 .cron("0 0 8,12,18 * * ?").build());
+        configs.add(DataSourceConfig.builder()
+                .code("baidu").name("百度").type("news")
+                .priority(1).enabled(true).maxConcurrent(3).maxRequestsPerHour(1500)
+                .cron("0 */30 * * * ?").build());
+        configs.add(DataSourceConfig.builder()
+                .code("zhihu").name("知乎").type("social_media")
+                .priority(2).enabled(true).maxConcurrent(2).maxRequestsPerHour(1000)
+                .cron("0 */30 * * * ?").build());
+        configs.add(DataSourceConfig.builder()
+                .code("weibo").name("微博").type("social_media")
+                .priority(1).enabled(true).maxConcurrent(3).maxRequestsPerHour(1500)
+                .cron("0 */15 * * * ?").build());
         return configs;
     }
 

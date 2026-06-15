@@ -185,3 +185,21 @@ hot-event:
         cron: "0 0 8,12,18 * * ?"
         max-concurrent: 2
         max-items: 50
+      baidu:
+        enabled: true
+        base-url: "https://top.baidu.com"
+        cron: "0 */30 * * * ?"
+        max-concurrent: 3
+        max-items: 80
+      zhihu:
+        enabled: true
+        base-url: "https://www.zhihu.com"
+        cron: "0 */30 * * * ?"
+        max-concurrent: 2
+        max-items: 60
+      weibo:
+        enabled: true
+        base-url: "https://weibo.com"
+        cron: "0 */15 * * * ?"
+        max-concurrent: 3
+        max-items: 80
