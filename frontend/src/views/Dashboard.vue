@@ -1,36 +1,36 @@
 <template>
   <div class="dashboard-page">
     <div class="page-header">
-      <h2 class="page-title">数据概览</h2>
+      <h2 class="page-title">{{ $t('dashboard.page') }}</h2>
       <el-button type="primary" @click="fetchStatistics">
         <el-icon><Refresh /></el-icon>
-        <span>刷新数据</span>
+        <span>{{ $t('common.search') }}</span>
       </el-button>
     </div>
 
     <el-row :gutter="20" class="mb-20">
       <el-col :span="6">
         <div class="stat-card">
-          <div class="stat-label">热点事件总数</div>
+          <div class="stat-label">{{ $t('dashboard.totalEvents') }}</div>
           <div class="stat-value">{{ statistics.totalCount || 0 }}</div>
         </div>
       </el-col>
       <el-col :span="6">
         <div class="stat-card">
-          <div class="stat-label">数据源数量</div>
+          <div class="stat-label">{{ $t('dashboard.activeSources') }}</div>
           <div class="stat-value">{{ filteredSourceCount }}</div>
         </div>
       </el-col>
       <el-col :span="6">
         <div class="stat-card">
-          <div class="stat-label">今日抓取次数</div>
+          <div class="stat-label">{{ $t('dashboard.todayEvents') }}</div>
           <div class="stat-value">{{ todayCrawlCount }}</div>
         </div>
       </el-col>
       <el-col :span="6">
         <div class="stat-card">
-          <div class="stat-label">抓取间隔</div>
-          <div class="stat-value">{{ crawlerConfigStore.interval }}<span class="stat-unit">分钟</span></div>
+          <div class="stat-label">{{ $t('dashboard.hotTrends') }}</div>
+          <div class="stat-value">{{ crawlerConfigStore.interval }}<span class="stat-unit">{{ $t('dashboard.last24Hours') }}</span></div>
         </div>
       </el-col>
     </el-row>
@@ -39,14 +39,14 @@
       <el-col :span="12">
         <div class="card mb-20">
           <div class="card-header">
-            <h3>各数据源分布</h3>
+            <h3>{{ $t('dashboard.sourceDistribution') }}</h3>
           </div>
           <div ref="sourceChartRef" class="chart-container"></div>
         </div>
 
         <div class="card">
           <div class="card-header">
-            <h3>分类分布</h3>
+            <h3>{{ $t('dashboard.categoryDistribution') }}</h3>
           </div>
           <div ref="categoryChartRef" class="chart-container"></div>
         </div>
@@ -55,7 +55,7 @@
       <el-col :span="12">
         <div class="card">
           <div class="card-header">
-            <h3>热门事件TOP10</h3>
+            <h3>{{ $t('dashboard.topEvents') }}</h3>
           </div>
           <div class="hot-list">
             <div
@@ -69,11 +69,11 @@
                 <div class="title">{{ event.title }}</div>
                 <div class="meta">
                   <span :class="['source-tag', event.source]">{{ getSourceName(event.source) }}</span>
-                  <span class="hot-value">{{ formatHotValue(event.hotValue) }} 热度</span>
+                  <span class="hot-value">{{ formatHotValue(event.hotValue) }} {{ $t('common.hotValue') }}</span>
                 </div>
               </div>
             </div>
-            <el-empty v-if="!filteredTopEvents || filteredTopEvents.length === 0" description="暂无数据" />
+            <el-empty v-if="!filteredTopEvents || filteredTopEvents.length === 0" :description="$t('common.noData')" />
           </div>
         </div>
       </el-col>
@@ -84,12 +84,14 @@
 <script setup>
 import { ref, onMounted, nextTick, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import * as echarts from 'echarts'
 import { getEventStatistics } from '@/api/event'
 import { useCrawlerConfigStore } from '@/stores/crawlerConfig'
 import { usePlatformConfigStore } from '@/stores/platformConfig'
 import { getPlatformName, PLATFORM_COLORS } from '@/utils/platform'
 
+const { t } = useI18n()
 const router = useRouter()
 const crawlerConfigStore = useCrawlerConfigStore()
 const platformConfigStore = usePlatformConfigStore()
@@ -143,7 +145,7 @@ const fetchStatistics = async () => {
     renderSourceChart()
     renderCategoryChart()
   } catch (error) {
-    console.error('获取统计数据失败', error)
+    console.error(t('events.fetchFailed'), error)
   }
 }
 
@@ -154,7 +156,7 @@ const getSourceName = (source) => {
 const formatHotValue = (value) => {
   if (!value) return '0'
   if (value >= 10000) {
-    return (value / 10000).toFixed(1) + '万'
+    return (value / 10000).toFixed(1) + t('events.tenThousand')
   }
   return value.toString()
 }

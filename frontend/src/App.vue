@@ -15,7 +15,7 @@
             <el-icon :size="32" color="#409EFF">
               <TrendCharts />
             </el-icon>
-            <span class="title">热点事件检测系统</span>
+            <span class="title">{{ $t('app.title') }}</span>
           </div>
           <div class="header-nav">
             <el-menu
@@ -26,31 +26,32 @@
             >
               <el-menu-item index="/">
                 <el-icon><DataAnalysis /></el-icon>
-                <span>数据概览</span>
+                <span>{{ $t('nav.dashboard') }}</span>
               </el-menu-item>
               <el-menu-item index="/events">
                 <el-icon><List /></el-icon>
-                <span>热点事件</span>
+                <span>{{ $t('nav.events') }}</span>
               </el-menu-item>
               <el-menu-item index="/crawl-records">
                 <el-icon><Refresh /></el-icon>
-                <span>抓取记录</span>
+                <span>{{ $t('nav.crawlRecords') }}</span>
               </el-menu-item>
               <el-menu-item v-if="userStore.isAdmin" index="/users">
                 <el-icon><User /></el-icon>
-                <span>用户管理</span>
+                <span>{{ $t('nav.users') }}</span>
               </el-menu-item>
               <el-menu-item v-if="userStore.isAdmin" index="/sys-configs">
                 <el-icon><Setting /></el-icon>
-                <span>系统管理</span>
+                <span>{{ $t('nav.sysConfig') }}</span>
               </el-menu-item>
             </el-menu>
           </div>
           <div class="header-right">
             <el-button type="primary" @click="handleCrawlAll" :loading="loading">
               <el-icon><RefreshRight /></el-icon>
-              <span>立即抓取</span>
+              <span>{{ $t('crawl.startAll') }}</span>
             </el-button>
+            <LanguageSwitcher />
             <el-dropdown>
               <div class="user-info">
                 <el-avatar
@@ -60,7 +61,7 @@
                 />
                 <span class="username">{{ userStore.username }}</span>
                 <el-tag v-if="userStore.isAdmin" type="danger" size="small" effect="dark">
-                  管理员
+                  {{ $t('user.admin') }}
                 </el-tag>
                 <el-icon><ArrowDown /></el-icon>
               </div>
@@ -72,15 +73,15 @@
                   </el-dropdown-item>
                   <el-dropdown-item disabled>
                     <el-icon><Message /></el-icon>
-                    {{ userStore.user?.email || '未设置邮箱' }}
+                    {{ userStore.user?.email || $t('user.noEmail') }}
                   </el-dropdown-item>
                   <el-dropdown-item divided @click="goToProfile">
                     <el-icon><Setting /></el-icon>
-                    个人中心
+                    {{ $t('user.profile') }}
                   </el-dropdown-item>
                   <el-dropdown-item @click="handleLogout">
                     <el-icon><SwitchButton /></el-icon>
-                    退出登录
+                    {{ $t('user.logout') }}
                   </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -94,7 +95,7 @@
       </el-main>
 
       <el-footer class="layout-footer">
-        <p>© 2024 热点事件检测系统 | 多平台数据采集</p>
+        <p>{{ $t('app.copyright') }} | {{ $t('app.subtitle') }}</p>
       </el-footer>
     </el-container>
   </div>
@@ -103,6 +104,7 @@
 <script setup>
 import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessageBox } from 'element-plus'
 import { UserFilled, ArrowDown, SwitchButton, Setting } from '@element-plus/icons-vue'
 import { executeAllCrawl } from '@/api/multiCrawler'
@@ -110,9 +112,11 @@ import { getSessionTimeoutConfig } from '@/api/sysConfig'
 import { useUserStore } from '@/stores/user'
 import { useMessageConfigStore } from '@/stores/messageConfig'
 import SessionTimeoutModal from '@/components/SessionTimeoutModal.vue'
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 import sessionTimeout from '@/utils/sessionTimeout'
 import message from '@/utils/message'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
@@ -212,15 +216,15 @@ const handleCrawlAll = async () => {
     const enabledSources = result?.enabledSources || 0
     const platforms = result?.platforms || []
     if (enabledSources === 0) {
-      message.warning('没有启用状态的平台，请先在系统管理-平台设置中启用需要采集的平台')
+      message.warning(t('crawl.noEnabledPlatforms'))
     } else {
-      message.success(`采集完成！共采集 ${enabledSources} 个启用平台: ${platforms.join(', ')}`)
+      message.success(t('crawl.crawlSuccess', { count: enabledSources, platforms: platforms.join(', ') }))
     }
     setTimeout(() => {
       window.location.reload()
     }, 1500)
   } catch (error) {
-    message.error('抓取失败: ' + (error.message || '未知错误'))
+    message.error(t('crawl.crawlFailed', { error: error.message || 'Unknown' }))
   } finally {
     loading.value = false
   }
@@ -228,13 +232,13 @@ const handleCrawlAll = async () => {
 
 const handleLogout = async () => {
   try {
-    await ElMessageBox.confirm('确定要退出登录吗？', '退出确认', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('user.logoutConfirm'), t('user.logoutTitle'), {
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel'),
       type: 'warning'
     })
     await userStore.logout()
-    message.success('已退出登录')
+    message.success(t('user.logoutSuccess'))
     router.push('/login')
   } catch (e) {
   }

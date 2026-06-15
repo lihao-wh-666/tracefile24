@@ -8,16 +8,16 @@
         show-icon
         class="timeout-alert"
       >
-        <template #title>会话已超时</template>
-        由于长时间未操作，您的会话已安全终止。为了您的账户安全，请重新登录。
+        <template #title>{{ t('login.sessionTimeout') }}</template>
+        {{ t('login.sessionTimeoutMessage') }}
       </el-alert>
 
       <div class="login-header">
         <el-icon :size="48" color="#409EFF">
           <TrendCharts />
         </el-icon>
-        <h1 class="title">热点事件检测系统</h1>
-        <p class="subtitle">欢迎回来，请登录您的账号</p>
+        <h1 class="title">{{ t('app.title') }}</h1>
+        <p class="subtitle">{{ t('login.welcomeBack') }}</p>
       </div>
       <el-form
         ref="loginFormRef"
@@ -29,7 +29,7 @@
         <el-form-item prop="username">
           <el-input
             v-model="loginForm.username"
-            placeholder="请输入用户名"
+            :placeholder="t('login.usernamePlaceholder')"
             size="large"
             :prefix-icon="User"
           />
@@ -38,7 +38,7 @@
           <el-input
             v-model="loginForm.password"
             type="password"
-            placeholder="请输入密码"
+            :placeholder="t('login.passwordPlaceholder')"
             size="large"
             :prefix-icon="Lock"
             show-password
@@ -52,13 +52,13 @@
             :loading="loading"
             @click="handleLogin"
           >
-            登 录
+            {{ t('login.loginButton') }}
           </el-button>
         </el-form-item>
       </el-form>
       <div class="login-tips">
-        <p>管理员账号：admin / admin123</p>
-        <p>普通用户账号：user1~user3 / user123</p>
+        <p>{{ t('login.adminTip') }}</p>
+        <p>{{ t('login.userTip') }}</p>
       </div>
     </div>
   </div>
@@ -67,10 +67,12 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { User, Lock } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import message from '@/utils/message'
 
+const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
@@ -85,8 +87,8 @@ const loginForm = reactive({
 })
 
 const loginRules = {
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+  username: [{ required: true, message: () => t('login.usernamePlaceholder'), trigger: 'blur' }],
+  password: [{ required: true, message: () => t('login.passwordPlaceholder'), trigger: 'blur' }]
 }
 
 const checkTimeoutRedirect = () => {
@@ -116,11 +118,11 @@ const handleLogin = async () => {
       loading.value = true
       try {
         await userStore.login(loginForm)
-        message.success('登录成功')
+        message.success(t('login.success'))
         clearTimeoutParam()
         router.push('/')
       } catch (error) {
-        console.error('登录失败:', error)
+        console.error(t('login.failed'), error)
         if (error.message && error.message !== 'Error') {
           message.error(error.message)
         }

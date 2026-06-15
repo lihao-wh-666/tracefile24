@@ -1,0 +1,147 @@
+export default {
+  app: {
+    title: 'Hot Event Detector',
+    subtitle: 'Multi-Platform Data Collection',
+    copyright: '© 2024 Hot Event Detector'
+  },
+  nav: {
+    dashboard: 'Dashboard',
+    events: 'Hot Events',
+    crawlRecords: 'Crawl Records',
+    users: 'User Management',
+    sysConfig: 'System Settings'
+  },
+  common: {
+    search: 'Search',
+    view: 'View',
+    delete: 'Delete',
+    edit: 'Edit',
+    save: 'Save',
+    cancel: 'Cancel',
+    confirm: 'Confirm',
+    close: 'Close',
+    loading: 'Loading...',
+    success: 'Operation successful',
+    error: 'Operation failed',
+    warning: 'Warning',
+    all: 'All',
+    noData: 'No data',
+    operation: 'Actions',
+    rank: 'Rank',
+    title: 'Title',
+    source: 'Source',
+    category: 'Category',
+    hotValue: 'Hot Value',
+    crawlTime: 'Crawl Time',
+    uncategorized: 'Uncategorized',
+    rising: 'Rising',
+    language: 'Language'
+  },
+  events: {
+    page: 'Hot Events',
+    searchPlaceholder: 'Search hot events...',
+    deleteConfirm: 'Are you sure you want to delete this event?',
+    deleteSuccess: 'Deleted successfully',
+    deleteFailed: 'Delete failed',
+    fetchFailed: 'Failed to fetch events',
+    tenThousand: 'K',
+    back: 'Back',
+    firstSeen: 'First Seen',
+    description: 'Description',
+    noDescription: 'No description',
+    viewSource: 'View Source',
+    notFound: 'Event not found',
+    fetchDetailFailed: 'Failed to fetch event detail'
+  },
+  dashboard: {
+    page: 'Dashboard',
+    totalEvents: 'Total Events',
+    todayEvents: 'Today New',
+    activeSources: 'Active Sources',
+    hotTrends: 'Hot Trends',
+    sourceDistribution: 'Source Distribution',
+    categoryDistribution: 'Category Distribution',
+    topEvents: 'Top Events',
+    recentEvents: 'Recent Events',
+    last24Hours: 'Last 24 Hours',
+    last7Days: 'Last 7 Days',
+    last30Days: 'Last 30 Days'
+  },
+  crawlRecords: {
+    page: 'Crawl Records',
+    platform: 'Platform',
+    status: 'Status',
+    startTime: 'Start Time',
+    endTime: 'End Time',
+    itemCount: 'Items Crawled',
+    running: 'Running',
+    completed: 'Completed',
+    failed: 'Failed',
+    pending: 'Pending'
+  },
+  login: {
+    title: 'Login',
+    username: 'Username',
+    password: 'Password',
+    loginButton: 'Login',
+    usernamePlaceholder: 'Enter username',
+    passwordPlaceholder: 'Enter password',
+    loginSuccess: 'Login successful',
+    loginFailed: 'Login failed',
+    usernameRequired: 'Username is required',
+    passwordRequired: 'Password is required',
+    welcomeBack: 'Welcome back, please login to your account',
+    sessionTimeout: 'Session Expired',
+    sessionTimeoutMessage: 'Your session has been terminated for security. Please login again.',
+    adminTip: 'Admin account: admin / admin123',
+    userTip: 'User account: user1~user3 / user123',
+    success: 'Login successful',
+    failed: 'Login failed'
+  },
+  user: {
+    profile: 'Profile',
+    logout: 'Logout',
+    logoutConfirm: 'Are you sure you want to logout?',
+    logoutTitle: 'Logout Confirmation',
+    logoutSuccess: 'Logged out successfully',
+    admin: 'Admin',
+    noEmail: 'No email set'
+  },
+  crawl: {
+    startAll: 'Crawl Now',
+    noEnabledPlatforms: 'No enabled platforms. Please enable platforms in System Settings first.',
+    crawlSuccess: 'Crawl completed! {count} platforms crawled: {platforms}',
+    crawlFailed: 'Crawl failed: {error}'
+  },
+  language: {
+    zhCN: '简体中文',
+    zhTW: '繁體中文',
+    en: 'English',
+    switchLanguage: 'Switch Language'
+  },
+  session: {
+    timeoutWarning: 'Session Expiring Soon',
+    timeoutMessage: 'Your session will expire in {minutes} minutes. Continue?',
+    continueSession: 'Continue',
+    logoutNow: 'Logout Now'
+  },
+  users: {
+    page: 'User Management',
+    username: 'Username',
+    email: 'Email',
+    role: 'Role',
+    status: 'Status',
+    createTime: 'Created',
+    enabled: 'Enabled',
+    disabled: 'Disabled',
+    addUser: 'Add User',
+    editUser: 'Edit User'
+  },
+  sysConfig: {
+    page: 'System Settings',
+    platformConfig: 'Platform Settings',
+    sessionConfig: 'Session Settings',
+    messageConfig: 'Message Settings',
+    i18nConfig: 'Language Settings'
+  }
+}

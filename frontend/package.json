@@ -21,16 +21,17 @@
     "jsencrypt": "^3.5.4",
     "pinia": "^2.1.7",
     "vue": "^3.4.21",
+    "vue-i18n": "^9.14.4",
     "vue-router": "^4.3.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.4",
+    "@vitest/coverage-v8": "^1.6.0",
     "@vue/test-utils": "^2.4.5",
     "happy-dom": "^14.3.9",
     "js-yaml": "^4.2.0",
     "sass": "^1.71.1",
     "vite": "^5.1.6",
-    "vitest": "^1.6.0",
-    "@vitest/coverage-v8": "^1.6.0"
+    "vitest": "^1.6.0"
   }
 }

@@ -1,13 +1,13 @@
 <template>
   <div class="events-page">
     <div class="page-header">
-      <h2 class="page-title">热点事件</h2>
+      <h2 class="page-title">{{ $t('events.page') }}</h2>
     </div>
 
     <div class="card mb-20">
       <div class="filter-bar">
         <el-tabs v-model="activeSource" @tab-change="handleSourceChange">
-          <el-tab-pane label="全部" name="all" />
+          <el-tab-pane :label="$t('common.all')" name="all" />
           <el-tab-pane
             v-for="platform in enabledPlatforms"
             :key="platform.code"
@@ -19,7 +19,7 @@
         <div class="search-bar">
           <el-input
             v-model="searchKeyword"
-            placeholder="搜索热点事件..."
+            :placeholder="$t('events.searchPlaceholder')"
             clearable
             @keyup.enter="handleSearch"
           >
@@ -29,7 +29,7 @@
           </el-input>
           <el-button type="primary" @click="handleSearch">
               <el-icon><Search /></el-icon>
-              <span>搜索</span>
+              <span>{{ $t('common.search') }}</span>
             </el-button>
         </div>
       </div>
@@ -42,7 +42,7 @@
         style="width: 100%"
         stripe
       >
-        <el-table-column type="index" label="排名" width="80" align="center">
+        <el-table-column type="index" :label="$t('common.rank')" width="80" align="center">
           <template #default="{ row, $index }">
             <div class="rank-badge" :class="'rank-' + (row.hotRank || $index + 1)">
               {{ row.hotRank || $index + 1 }}
@@ -50,46 +50,46 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="title" label="标题" min-width="300">
+        <el-table-column prop="title" :label="$t('common.title')" min-width="300">
           <template #default="{ row }">
             <div class="event-title" @click="goToDetail(row.id)">
             {{ row.title }}
             <el-tag v-if="row.isRising" type="danger" size="small" effect="light">
               <el-icon><TrendCharts /></el-icon>
-              飙升
+              {{ $t('common.rising') }}
             </el-tag>
             </div>
           </template>
         </el-table-column>
 
-        <el-table-column prop="source" label="来源" width="100" align="center">
+        <el-table-column prop="source" :label="$t('common.source')" width="100" align="center">
           <template #default="{ row }">
             <span :class="['source-tag', row.source]">{{ getSourceName(row.source) }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="category" label="分类" width="100" align="center">
+        <el-table-column prop="category" :label="$t('common.category')" width="100" align="center">
           <template #default="{ row }">
-            <el-tag size="small">{{ row.category || '未分类' }}</el-tag>
+            <el-tag size="small">{{ row.category || $t('common.uncategorized') }}</el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column prop="hotValue" label="热度" width="140" align="right">
+        <el-table-column prop="hotValue" :label="$t('common.hotValue')" width="140" align="right">
           <template #default="{ row }">
             <span class="hot-value">{{ formatHotValue(row.hotValue) }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="crawlTime" label="抓取时间" width="180" align="center">
+        <el-table-column prop="crawlTime" :label="$t('common.crawlTime')" width="180" align="center">
           <template #default="{ row }">
             {{ formatTime(row.crawlTime) }}
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="120" align="center">
+        <el-table-column :label="$t('common.operation')" width="120" align="center">
           <template #default="{ row }">
-            <el-button type="primary" link @click="goToDetail(row.id)">查看</el-button>
-            <el-button type="danger" link @click="handleDelete(row.id)">删除</el-button>
+            <el-button type="primary" link @click="goToDetail(row.id)">{{ $t('common.view') }}</el-button>
+            <el-button type="danger" link @click="handleDelete(row.id)">{{ $t('common.delete') }}</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -112,6 +112,7 @@
 <script setup>
 import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessageBox } from 'element-plus'
 import { getHotEventList, deleteHotEvent } from '@/api/event'
 import { usePlatformConfigStore } from '@/stores/platformConfig'
@@ -119,6 +120,7 @@ import { getPlatformName } from '@/utils/platform'
 import dayjs from 'dayjs'
 import message from '@/utils/message'
 
+const { t } = useI18n()
 const router = useRouter()
 const platformConfigStore = usePlatformConfigStore()
 
@@ -161,7 +163,7 @@ const fetchEventList = async () => {
     rawEventList.value = data.records || []
     total.value = data.total || 0
   } catch (error) {
-    console.error('获取热点事件列表失败', error)
+    console.error(t('events.fetchFailed'), error)
   } finally {
     loading.value = false
   }
@@ -180,7 +182,7 @@ const getSourceName = (source) => {
 const formatHotValue = (value) => {
   if (!value) return '0'
   if (value >= 10000) {
-    return (value / 10000).toFixed(1) + '万'
+    return (value / 10000).toFixed(1) + t('events.tenThousand')
   }
   return value.toString()
 }
@@ -217,14 +219,14 @@ const handleCurrentChange = (page) => {
 
 const handleDelete = async (id) => {
   try {
-    await ElMessageBox.confirm('确定要删除这条热点事件吗？', '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('events.deleteConfirm'), t('common.warning'), {
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel'),
       type: 'warning'
     })
 
     await deleteHotEvent(id)
-    message.success('删除成功')
+    message.success(t('events.deleteSuccess'))
     fetchEventList()
   } catch (error) {
     if (error !== 'cancel') {

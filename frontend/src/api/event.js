@@ -8,10 +8,15 @@ export function getHotEventList(params) {
   })
 }
 
-export function getHotEventById(id) {
+export function getHotEventById(id, lang) {
+  const params = {}
+  if (lang && lang !== 'zh-CN') {
+    params.lang = lang
+  }
   return request({
     url: `/events/${id}`,
-    method: 'get'
+    method: 'get',
+    params
   })
 }
 
@@ -33,5 +38,20 @@ export function deleteHotEvent(id) {
   return request({
     url: `/events/${id}`,
     method: 'delete'
+  })
+}
+
+export function getEventTranslations(eventId) {
+  return request({
+    url: `/events/${eventId}/translations`,
+    method: 'get'
+  })
+}
+
+export function updateEventTranslation(eventId, language, data) {
+  return request({
+    url: `/events/${eventId}/translations/${language}`,
+    method: 'put',
+    data
   })
 }

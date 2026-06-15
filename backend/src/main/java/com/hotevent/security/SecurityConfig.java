@@ -78,6 +78,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/login", "/auth/register", "/auth/public-key").permitAll()
                         .requestMatchers("/sys-configs/session-timeout", "/sys-configs/message-config").permitAll()
+                        .requestMatchers("/i18n/supported-languages", "/i18n/language-names", "/i18n/status").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()

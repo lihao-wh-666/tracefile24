@@ -82,6 +82,37 @@ management:
       show-details: never
 
 hot-event:
+  i18n:
+    default-locale: zh-CN
+    supported-locales:
+      - zh-CN
+      - zh-TW
+      - en
+    translation:
+      enabled: true
+      provider: baidu
+      cache-enabled: true
+      cache-ttl-hours: 72
+      auto-translate-on-crawl: true
+      baidu:
+        app-id: ${BAIDU_TRANSLATE_APP_ID:}
+        secret-key: ${BAIDU_TRANSLATE_SECRET_KEY:}
+        api-url: https://fanyi-api.baidu.com/api/trans/vip/translate
+      google:
+        api-key: ${GOOGLE_TRANSLATE_API_KEY:}
+        api-url: https://translation.googleapis.com/language/translate/v2
+    nlp:
+      segmenter:
+        chinese:
+          enabled: true
+          mode: standard
+          traditional-chinese-support: true
+        english:
+          enabled: true
+          model-type: simple
+      language-detection:
+        enabled: true
+        confidence-threshold: 0.8
   multi-platform:
     enabled: true
     auto-start: true

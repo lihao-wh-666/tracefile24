@@ -24,6 +24,9 @@
         <jsoup.version>1.17.2</jsoup.version>
         <guava.version>33.0.0-jre</guava.version>
         <okhttp.version>4.12.0</okhttp.version>
+        <hanlp.version>portable-1.8.4</hanlp.version>
+        <opennlp.version>2.3.0</opennlp.version>
+        <tika.version>2.9.1</tika.version>
     </properties>
 
     <dependencies>
@@ -126,6 +129,24 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.hankcs</groupId>
+            <artifactId>hanlp</artifactId>
+            <version>${hanlp.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.opennlp</groupId>
+            <artifactId>opennlp-tools</artifactId>
+            <version>${opennlp.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.tika</groupId>
+            <artifactId>tika-core</artifactId>
+            <version>${tika.version}</version>
         </dependency>
     </dependencies>
 

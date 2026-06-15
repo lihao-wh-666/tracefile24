@@ -131,3 +131,19 @@ CALL add_column_if_not_exists('sys_user', 'last_login_fail_time', 'DATETIME COMM
 CALL add_column_if_not_exists('sys_user', 'lock_time', 'DATETIME COMMENT ''账号锁定时间'' AFTER last_login_fail_time');
 
 DROP PROCEDURE IF EXISTS add_column_if_not_exists;
+
+CREATE TABLE IF NOT EXISTS event_translation (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    event_id BIGINT NOT NULL COMMENT '关联事件ID',
+    language VARCHAR(10) NOT NULL COMMENT '语言代码(zh-CN/zh-TW/en)',
+    title VARCHAR(500) COMMENT '翻译标题',
+    description TEXT COMMENT '翻译描述',
+    category VARCHAR(100) COMMENT '翻译分类',
+    translation_provider VARCHAR(50) COMMENT '翻译提供者(baidu/google/manual/internal)',
+    is_verified TINYINT(1) DEFAULT 0 COMMENT '是否人工校验',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    UNIQUE KEY uk_event_language (event_id, language),
+    INDEX idx_event_id (event_id),
+    INDEX idx_language (language)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='事件翻译表';

@@ -1,0 +1,160 @@
+package com.hotevent.i18n;
+
+import cn.hutool.crypto.SecureUtil;
+import cn.hutool.http.HttpRequest;
+import cn.hutool.http.HttpResponse;
+import cn.hutool.json.JSONArray;
+import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
+import com.hotevent.i18n.translation.TranslationCache;
+import com.hotevent.i18n.translation.TranslationProvider;
+import com.hotevent.i18n.translation.impl.BaiduTranslationProvider;
+import com.hotevent.i18n.translation.impl.GoogleTranslationProvider;
+import com.hotevent.i18n.translation.impl.InternalTranslationProvider;
+import com.hotevent.nlp.NlpService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+
+@Slf4j
+@Service
+public class TranslationService {
+
+    @Autowired
+    private I18nProperties i18nProperties;
+
+    @Autowired
+    private NlpService nlpService;
+
+    @Autowired
+    private TranslationCache translationCache;
+
+    private final Map<String, TranslationProvider> providers = new ConcurrentHashMap<>();
+
+    public String translate(String text, String sourceLang, String targetLang) {
+        if (text == null || text.trim().isEmpty()) return text;
+        if (sourceLang.equals(targetLang)) return text;
+
+        if (isZhCnToZhTw(sourceLang, targetLang)) {
+            return nlpService.convertToTraditional(text);
+        }
+        if (isZhTwToZhCn(sourceLang, targetLang)) {
+            return nlpService.convertToSimplified(text);
+        }
+
+        if (i18nProperties.getTranslation().isCacheEnabled()) {
+            String cached = translationCache.get(text, sourceLang, targetLang);
+            if (cached != null) {
+                log.debug("[Translation] Cache hit: {} -> {} ({})", sourceLang, targetLang, text.substring(0, Math.min(20, text.length())));
+                return cached;
+            }
+        }
+
+        if (!i18nProperties.getTranslation().isEnabled()) {
+            log.warn("[Translation] Translation is disabled, returning original text");
+            return text;
+        }
+
+        TranslationProvider provider = getProvider();
+        if (provider == null) {
+            log.warn("[Translation] No translation provider available");
+            return text;
+        }
+
+        try {
+            String result = provider.translate(text, sourceLang, targetLang);
+
+            if (result != null && !result.isEmpty()) {
+                if (i18nProperties.getTranslation().isCacheEnabled()) {
+                    translationCache.put(text, sourceLang, targetLang, result);
+                }
+                return result;
+            }
+        } catch (Exception e) {
+            log.error("[Translation] Translation failed: {}", e.getMessage());
+        }
+
+        return text;
+    }
+
+    public Map<String, String> translateBatch(Map<String, String> texts, String sourceLang, String targetLang) {
+        Map<String, String> results = new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : texts.entrySet()) {
+            String translated = translate(entry.getValue(), sourceLang, targetLang);
+            results.put(entry.getKey(), translated);
+        }
+        return results;
+    }
+
+    public Map<String, Object> translateEvent(String title, String description, String category,
+                                                String sourceLang, String targetLang) {
+        Map<String, Object> result = new LinkedHashMap<>();
+
+        result.put("title", translate(title, sourceLang, targetLang));
+
+        if (description != null && !description.isEmpty()) {
+            result.put("description", translate(description, sourceLang, targetLang));
+        }
+
+        if (category != null && !category.isEmpty()) {
+            result.put("category", translate(category, sourceLang, targetLang));
+        }
+
+        result.put("sourceLang", sourceLang);
+        result.put("targetLang", targetLang);
+
+        return result;
+    }
+
+    private TranslationProvider getProvider() {
+        String providerName = i18nProperties.getTranslation().getProvider();
+        return providers.computeIfAbsent(providerName, name -> {
+            switch (name.toLowerCase()) {
+                case "baidu":
+                    I18nProperties.Baidu baiduConfig = i18nProperties.getTranslation().getBaidu();
+                    if (baiduConfig.getAppId() != null && !baiduConfig.getAppId().isEmpty() &&
+                            baiduConfig.getSecretKey() != null && !baiduConfig.getSecretKey().isEmpty()) {
+                        return new BaiduTranslationProvider(baiduConfig, i18nProperties);
+                    }
+                    log.warn("[Translation] Baidu credentials not configured, falling back to internal provider");
+                    return new InternalTranslationProvider(nlpService);
+                case "google":
+                    I18nProperties.Google googleConfig = i18nProperties.getTranslation().getGoogle();
+                    if (googleConfig.getApiKey() != null && !googleConfig.getApiKey().isEmpty()) {
+                        return new GoogleTranslationProvider(googleConfig, i18nProperties);
+                    }
+                    log.warn("[Translation] Google credentials not configured, falling back to internal provider");
+                    return new InternalTranslationProvider(nlpService);
+                default:
+                    log.warn("[Translation] Unknown provider: {}, using internal provider", name);
+                    return new InternalTranslationProvider(nlpService);
+            }
+        });
+    }
+
+    private boolean isZhCnToZhTw(String source, String target) {
+        return "zh-CN".equals(source) && "zh-TW".equals(target);
+    }
+
+    private boolean isZhTwToZhCn(String source, String target) {
+        return "zh-TW".equals(source) && "zh-CN".equals(target);
+    }
+
+    public boolean isTranslationAvailable() {
+        if (!i18nProperties.getTranslation().isEnabled()) return false;
+        TranslationProvider provider = getProvider();
+        return provider != null && !(provider instanceof InternalTranslationProvider) ||
+                (provider instanceof InternalTranslationProvider);
+    }
+
+    public String getActiveProvider() {
+        return i18nProperties.getTranslation().getProvider();
+    }
+
+    public void clearCache() {
+        translationCache.clear();
+    }
+}

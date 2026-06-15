@@ -3,7 +3,7 @@
     <div class="page-header">
       <el-button @click="goBack">
         <el-icon><ArrowLeft /></el-icon>
-        <span>返回</span>
+        <span>{{ $t('events.back') }}</span>
       </el-button>
     </div>
 
@@ -11,34 +11,34 @@
       <div class="event-header" v-if="event">
         <div class="event-meta">
           <span :class="['source-tag', event.source]">{{ getSourceName(event.source) }}</span>
-          <span class="rank">排名 #{{ event.hotRank }}</span>
-          <span class="hot-value">{{ formatHotValue(event.hotValue) }} 热度</span>
+          <span class="rank">{{ $t('common.rank') }} #{{ event.hotRank }}</span>
+          <span class="hot-value">{{ formatHotValue(event.hotValue) }} {{ $t('common.hotValue') }}</span>
           <el-tag v-if="event.isRising" type="danger" effect="light">
             <el-icon><TrendCharts /></el-icon>
-            飙升
+            {{ $t('common.rising') }}
           </el-tag>
         </div>
         <h1 class="event-title">{{ event.title }}</h1>
         <div class="event-info">
           <span><el-icon><Clock /></el-icon> {{ formatTime(event.crawlTime) }}</span>
           <span v-if="event.category"><el-icon><PriceTag /></el-icon> {{ event.category }}</span>
-          <span><el-icon><View /></el-icon> 首次出现: {{ formatTime(event.firstSeenTime) }}</span>
+          <span><el-icon><View /></el-icon> {{ $t('events.firstSeen') }}: {{ formatTime(event.firstSeenTime) }}</span>
         </div>
       </div>
 
       <div class="event-content" v-if="event">
-        <h3>事件描述</h3>
-        <p>{{ event.description || '暂无描述' }}</p>
+        <h3>{{ $t('events.description') }}</h3>
+        <p>{{ event.description || $t('events.noDescription') }}</p>
 
         <div class="event-actions">
           <el-button type="primary" @click="openSourceUrl">
             <el-icon><Link /></el-icon>
-            <span>查看原文</span>
+            <span>{{ $t('events.viewSource') }}</span>
           </el-button>
         </div>
       </div>
 
-      <el-empty v-if="!event && !loading" description="事件不存在" />
+      <el-empty v-if="!event && !loading" :description="$t('events.notFound')" />
     </div>
   </div>
 </template>
@@ -46,10 +46,12 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { getHotEventById } from '@/api/event'
 import { getPlatformName } from '@/utils/platform'
 import dayjs from 'dayjs'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 
@@ -62,7 +64,7 @@ const fetchEventDetail = async () => {
     const id = route.params.id
     event.value = await getHotEventById(id)
   } catch (error) {
-    console.error('获取事件详情失败', error)
+    console.error(t('events.fetchDetailFailed'), error)
   } finally {
     loading.value = false
   }
@@ -75,7 +77,7 @@ const getSourceName = (source) => {
 const formatHotValue = (value) => {
   if (!value) return '0'
   if (value >= 10000) {
-    return (value / 10000).toFixed(1) + '万'
+    return (value / 10000).toFixed(1) + t('events.tenThousand')
   }
   return value.toString()
 }

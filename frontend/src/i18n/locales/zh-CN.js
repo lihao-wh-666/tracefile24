@@ -1,0 +1,147 @@
+export default {
+  app: {
+    title: '热点事件检测系统',
+    subtitle: '多平台数据采集',
+    copyright: '© 2024 热点事件检测系统'
+  },
+  nav: {
+    dashboard: '数据概览',
+    events: '热点事件',
+    crawlRecords: '抓取记录',
+    users: '用户管理',
+    sysConfig: '系统管理'
+  },
+  common: {
+    search: '搜索',
+    view: '查看',
+    delete: '删除',
+    edit: '编辑',
+    save: '保存',
+    cancel: '取消',
+    confirm: '确定',
+    close: '关闭',
+    loading: '加载中...',
+    success: '操作成功',
+    error: '操作失败',
+    warning: '警告',
+    all: '全部',
+    noData: '暂无数据',
+    operation: '操作',
+    rank: '排名',
+    title: '标题',
+    source: '来源',
+    category: '分类',
+    hotValue: '热度',
+    crawlTime: '抓取时间',
+    uncategorized: '未分类',
+    rising: '飙升',
+    language: '语言'
+  },
+  events: {
+    page: '热点事件',
+    searchPlaceholder: '搜索热点事件...',
+    deleteConfirm: '确定要删除这条热点事件吗？',
+    deleteSuccess: '删除成功',
+    deleteFailed: '删除失败',
+    fetchFailed: '获取热点事件列表失败',
+    tenThousand: '万',
+    back: '返回',
+    firstSeen: '首次出现',
+    description: '事件描述',
+    noDescription: '暂无描述',
+    viewSource: '查看原文',
+    notFound: '事件不存在',
+    fetchDetailFailed: '获取事件详情失败'
+  },
+  dashboard: {
+    page: '数据概览',
+    totalEvents: '事件总数',
+    todayEvents: '今日新增',
+    activeSources: '活跃来源',
+    hotTrends: '热度趋势',
+    sourceDistribution: '来源分布',
+    categoryDistribution: '分类分布',
+    topEvents: '热门事件',
+    recentEvents: '最新事件',
+    last24Hours: '近24小时',
+    last7Days: '近7天',
+    last30Days: '近30天'
+  },
+  crawlRecords: {
+    page: '抓取记录',
+    platform: '平台',
+    status: '状态',
+    startTime: '开始时间',
+    endTime: '结束时间',
+    itemCount: '采集数量',
+    running: '运行中',
+    completed: '已完成',
+    failed: '失败',
+    pending: '待执行'
+  },
+  login: {
+    title: '登录',
+    username: '用户名',
+    password: '密码',
+    loginButton: '登录',
+    usernamePlaceholder: '请输入用户名',
+    passwordPlaceholder: '请输入密码',
+    loginSuccess: '登录成功',
+    loginFailed: '登录失败',
+    usernameRequired: '请输入用户名',
+    passwordRequired: '请输入密码',
+    welcomeBack: '欢迎回来，请登录您的账号',
+    sessionTimeout: '会话已超时',
+    sessionTimeoutMessage: '由于长时间未操作，您的会话已安全终止。为了您的账户安全，请重新登录。',
+    adminTip: '管理员账号：admin / admin123',
+    userTip: '普通用户账号：user1~user3 / user123',
+    success: '登录成功',
+    failed: '登录失败'
+  },
+  user: {
+    profile: '个人中心',
+    logout: '退出登录',
+    logoutConfirm: '确定要退出登录吗？',
+    logoutTitle: '退出确认',
+    logoutSuccess: '已退出登录',
+    admin: '管理员',
+    noEmail: '未设置邮箱'
+  },
+  crawl: {
+    startAll: '立即抓取',
+    noEnabledPlatforms: '没有启用状态的平台，请先在系统管理-平台设置中启用需要采集的平台',
+    crawlSuccess: '采集完成！共采集 {count} 个启用平台: {platforms}',
+    crawlFailed: '抓取失败: {error}'
+  },
+  language: {
+    zhCN: '简体中文',
+    zhTW: '繁體中文',
+    en: 'English',
+    switchLanguage: '切换语言'
+  },
+  session: {
+    timeoutWarning: '会话即将过期',
+    timeoutMessage: '您的会话将在 {minutes} 分钟后过期，是否继续？',
+    continueSession: '继续',
+    logoutNow: '立即退出'
+  },
+  users: {
+    page: '用户管理',
+    username: '用户名',
+    email: '邮箱',
+    role: '角色',
+    status: '状态',
+    createTime: '创建时间',
+    enabled: '启用',
+    disabled: '禁用',
+    addUser: '添加用户',
+    editUser: '编辑用户'
+  },
+  sysConfig: {
+    page: '系统管理',
+    platformConfig: '平台设置',
+    sessionConfig: '会话设置',
+    messageConfig: '消息设置',
+    i18nConfig: '多语言设置'
+  }
+}
