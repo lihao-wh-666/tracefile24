@@ -239,13 +239,28 @@ public class MultiPlatformCrawlerController {
     }
 
     @PostMapping("/crawl/all")
-    public Result<Object> executeAllCrawl(@RequestParam(defaultValue = "true") boolean async) {
+    public Result<Object> executeAllCrawl(@RequestParam(defaultValue = "false") boolean async) {
         try {
-            int enabledCount = dataSourceManager.getEnabledConfigs().size();
+            List<DataSourceConfig> enabledConfigs = dataSourceManager.getEnabledConfigs();
+            int enabledCount = enabledConfigs.size();
+
+            if (enabledCount == 0) {
+                Map<String, Object> resp = new HashMap<>();
+                resp.put("message", "没有启用状态的平台，请先在平台设置中启用需要采集的平台");
+                resp.put("enabledSources", 0);
+                return Result.error("没有启用状态的平台");
+            }
+
+            List<String> enabledCodes = enabledConfigs.stream()
+                    .map(DataSourceConfig::getCode).toList();
+            log.info("执行全平台采集请求: async={}, 启用平台数={}, 平台列表={}",
+                    async, enabledCount, enabledCodes);
+
             if (async) {
                 CompletableFuture.runAsync(() -> {
                     try {
                         crawlScheduler.executeAllSources();
+                        log.info("异步全平台采集执行完成");
                     } catch (Exception e) {
                         log.error("异步全平台采集执行异常: {}", e.getMessage(), e);
                     }
@@ -253,10 +268,14 @@ public class MultiPlatformCrawlerController {
                 Map<String, Object> resp = new HashMap<>();
                 resp.put("message", "全平台异步采集已启动");
                 resp.put("enabledSources", enabledCount);
+                resp.put("platforms", enabledCodes);
                 return Result.success(resp);
             }
+
             Map<String, Object> result = crawlScheduler.executeAllSources();
             result.put("enabledSources", enabledCount);
+            result.put("platforms", enabledCodes);
+            log.info("同步全平台采集执行完成: enabledSources={}, result={}", enabledCount, result);
             return Result.success(result);
         } catch (Exception e) {
             log.error("执行全平台采集失败: {}", e.getMessage(), e);

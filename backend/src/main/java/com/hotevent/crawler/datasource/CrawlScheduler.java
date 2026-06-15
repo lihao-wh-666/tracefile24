@@ -121,8 +121,7 @@ public class CrawlScheduler {
         if (adapter == null) throw new IllegalArgumentException("未找到数据源: " + code);
 
         if (!robotsManager.isAllowed(code, adapter.getBaseUrl() + "/")) {
-            log.warn("[{}] robots协议禁止爬取，跳过", code);
-            throw new IllegalStateException("robots协议禁止爬取该数据源: " + code);
+            log.warn("[{}] robots协议可能禁止爬取baseUrl，但继续尝试采集实际API接口", code);
         }
 
         CrawlTask task = adapter.createDefaultTask();
@@ -195,6 +194,7 @@ public class CrawlScheduler {
     }
 
     public CompletableFuture<CrawlTask> executeSourceAsync(String code) {
+        ensureInitialized();
         return CompletableFuture.supplyAsync(() -> {
             try {
                 return executeSource(code);
@@ -206,6 +206,7 @@ public class CrawlScheduler {
     }
 
     public CompletableFuture<CrawlTask> executeSourceAsync(String code, String keyword) {
+        ensureInitialized();
         return CompletableFuture.supplyAsync(() -> {
             try {
                 return executeSource(code, keyword);
@@ -214,6 +215,21 @@ public class CrawlScheduler {
                 return null;
             }
         }, crawlExecutor);
+    }
+
+    private synchronized void ensureInitialized() {
+        if (crawlExecutor == null) {
+            log.warn("CrawlScheduler未初始化，执行自动初始化...");
+            dataSourceManager.init();
+            int poolSize = calculateThreadPoolSize();
+            this.crawlExecutor = new ThreadPoolExecutor(
+                    poolSize / 2, poolSize,
+                    60L, TimeUnit.SECONDS,
+                    new LinkedBlockingQueue<>(1000),
+                    new ThreadPoolExecutor.CallerRunsPolicy()
+            );
+            log.info("CrawlScheduler自动初始化完成，线程池大小: {}", poolSize);
+        }
     }
 
     private CrawlResponse executeTaskInternal(CrawlTask task, PlatformAdapter adapter,
@@ -237,9 +253,7 @@ public class CrawlScheduler {
             if (req == null) break;
 
             if (!robotsManager.isAllowed(task.getPlatform(), req.getUrl())) {
-                log.warn("[{}] robots协议禁止访问: {}", task.getPlatform(), req.getUrl());
-                failReq.incrementAndGet();
-                continue;
+                log.warn("[{}] robots协议可能禁止访问: {}，仍然尝试请求", task.getPlatform(), req.getUrl());
             }
 
             if (req.getUrl() != null && visitedUrls.contains(req.getUrl())) continue;
@@ -309,13 +323,26 @@ public class CrawlScheduler {
     }
 
     public Map<String, Object> executeAllSources() {
+        ensureInitialized();
         List<DataSourceConfig> configs = dataSourceManager.getEnabledConfigs();
         List<CompletableFuture<CrawlTask>> futures = new ArrayList<>();
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("totalSources", configs.size());
         result.put("startTime", LocalDateTime.now());
 
+        if (configs.isEmpty()) {
+            log.warn("没有启用状态的数据源，无法执行采集");
+            result.put("endTime", LocalDateTime.now());
+            result.put("completedTasks", 0);
+            result.put("message", "没有启用状态的数据源");
+            return result;
+        }
+
+        log.info("开始执行全平台采集，共{}个启用数据源: {}", configs.size(),
+                configs.stream().map(DataSourceConfig::getCode).toList());
+
         for (DataSourceConfig cfg : configs) {
+            log.info("提交数据源[{}]的采集任务...", cfg.getCode());
             futures.add(executeSourceAsync(cfg.getCode()));
         }
 

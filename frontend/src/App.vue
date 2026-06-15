@@ -208,11 +208,17 @@ const handleCrawlAll = async () => {
   if (loading.value) return
   loading.value = true
   try {
-    await executeAllCrawl(true)
-    message.success('全平台采集任务已启动，将采集所有启用状态的平台数据')
+    const result = await executeAllCrawl(false)
+    const enabledSources = result?.enabledSources || 0
+    const platforms = result?.platforms || []
+    if (enabledSources === 0) {
+      message.warning('没有启用状态的平台，请先在系统管理-平台设置中启用需要采集的平台')
+    } else {
+      message.success(`采集完成！共采集 ${enabledSources} 个启用平台: ${platforms.join(', ')}`)
+    }
     setTimeout(() => {
       window.location.reload()
-    }, 2000)
+    }, 1500)
   } catch (error) {
     message.error('抓取失败: ' + (error.message || '未知错误'))
   } finally {

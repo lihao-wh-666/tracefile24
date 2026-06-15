@@ -44,7 +44,13 @@ public class DataSourceManager {
     private final Map<String, DataSourceConfig> configRegistry = new ConcurrentHashMap<>();
     private final Set<String> enabledSources = Collections.synchronizedSet(new HashSet<>());
 
+    private volatile boolean initialized = false;
+
     public void init() {
+        if (initialized) {
+            log.debug("DataSourceManager已初始化，跳过重复初始化");
+            return;
+        }
         registerAdapter(weChatAdapter);
         registerAdapter(xiaohongshuAdapter);
         registerAdapter(douyinAdapter);
@@ -62,6 +68,7 @@ public class DataSourceManager {
                 enabledSources.add(config.getCode());
             }
         }
+        initialized = true;
         log.info("DataSourceManager初始化完成，已注册{}个数据源，启用{}个",
                 adapterRegistry.size(), enabledSources.size());
     }

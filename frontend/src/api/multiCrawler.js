@@ -36,11 +36,12 @@ export function disablePlatform(code) {
   })
 }
 
-export function executeAllCrawl(async = true) {
+export function executeAllCrawl(async = false) {
   return request({
     url: '/multi-crawler/crawl/all',
     method: 'post',
-    params: { async }
+    params: { async },
+    timeout: 300000
   })
 }
 

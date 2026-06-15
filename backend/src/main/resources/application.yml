@@ -92,7 +92,7 @@ hot-event:
       incremental-enabled: true
 
   crawler:
-    enabled: true
+    enabled: false
     cron: "0 */30 * * * ?"
     sources:
       - weibo
