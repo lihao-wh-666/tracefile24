@@ -4,16 +4,16 @@ import com.hotevent.common.Result;
 import com.hotevent.crawler.compliance.RobotsComplianceManager;
 import com.hotevent.crawler.core.CrawlTask;
 import com.hotevent.crawler.datasource.CrawlScheduler;
+import com.hotevent.crawler.datasource.DataSourceConfig;
 import com.hotevent.crawler.datasource.DataSourceManager;
 import com.hotevent.crawler.monitor.CrawlMonitor;
 import com.hotevent.crawler.storage.IncrementalCrawlManager;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
@@ -71,9 +71,11 @@ public class MultiPlatformCrawlerController {
     }
 
     @PostMapping("/sources/{code}/enable")
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<String> enableSource(@PathVariable String code) {
         try {
             dataSourceManager.enableSource(code);
+            crawlScheduler.rescheduleSource(code);
             return Result.success("已启用数据源: " + code);
         } catch (Exception e) {
             return Result.error("启用失败: " + e.getMessage());
@@ -81,12 +83,105 @@ public class MultiPlatformCrawlerController {
     }
 
     @PostMapping("/sources/{code}/disable")
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<String> disableSource(@PathVariable String code) {
         try {
             dataSourceManager.disableSource(code);
+            crawlScheduler.rescheduleSource(code);
             return Result.success("已禁用数据源: " + code);
         } catch (Exception e) {
             return Result.error("禁用失败: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/sources/{code}/config")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<Map<String, Object>> getSourceConfig(@PathVariable String code) {
+        try {
+            var config = dataSourceManager.getConfig(code);
+            var adapter = dataSourceManager.getAdapter(code);
+            if (config == null) {
+                return Result.error("未找到数据源配置: " + code);
+            }
+            Map<String, Object> result = new HashMap<>();
+            result.put("code", code);
+            result.put("name", adapter != null ? adapter.getPlatformName() : config.getName());
+            result.put("enabled", dataSourceManager.isSourceEnabled(code));
+            result.put("cron", config.getCron());
+            result.put("intervalMinutes", crawlScheduler.getSourceIntervalMinutes(code));
+            result.put("maxConcurrent", config.getMaxConcurrent());
+            result.put("maxItemsPerCrawl", config.getMaxItemsPerCrawl());
+            result.put("priority", config.getPriority());
+            return Result.success(result);
+        } catch (Exception e) {
+            return Result.error("获取配置失败: " + e.getMessage());
+        }
+    }
+
+    @PutMapping("/sources/{code}/config")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<String> updateSourceConfig(@PathVariable String code,
+                                              @RequestBody Map<String, Object> body) {
+        try {
+            DataSourceConfig config = dataSourceManager.getConfig(code);
+            if (config == null) {
+                return Result.error("未找到数据源配置: " + code);
+            }
+
+            if (body.containsKey("intervalMinutes")) {
+                int intervalMinutes = Integer.parseInt(body.get("intervalMinutes").toString());
+                crawlScheduler.updateSourceIntervalMinutes(code, intervalMinutes);
+            }
+
+            if (body.containsKey("maxConcurrent")) {
+                int maxConcurrent = Integer.parseInt(body.get("maxConcurrent").toString());
+                config.setMaxConcurrent(maxConcurrent);
+            }
+
+            if (body.containsKey("maxItemsPerCrawl")) {
+                int maxItemsPerCrawl = Integer.parseInt(body.get("maxItemsPerCrawl").toString());
+                config.setMaxItemsPerCrawl(maxItemsPerCrawl);
+            }
+
+            if (body.containsKey("priority")) {
+                int priority = Integer.parseInt(body.get("priority").toString());
+                config.setPriority(priority);
+            }
+
+            return Result.success("配置更新成功");
+        } catch (Exception e) {
+            log.error("更新数据源配置失败: {}", e.getMessage(), e);
+            return Result.error("更新失败: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/platform-configs")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<List<Map<String, Object>>> getPlatformConfigs() {
+        try {
+            List<Map<String, Object>> configs = new ArrayList<>();
+            var sourceStatus = dataSourceManager.getSourceStatus();
+            List<Map<String, Object>> sources = (List<Map<String, Object>>) sourceStatus.get("sources");
+
+            for (Map<String, Object> source : sources) {
+                String code = (String) source.get("code");
+                Map<String, Object> configInfo = new LinkedHashMap<>();
+                configInfo.put("code", code);
+                configInfo.put("name", source.get("name"));
+                configInfo.put("type", source.get("type"));
+                configInfo.put("enabled", source.get("enabled"));
+                configInfo.put("priority", source.get("priority"));
+                configInfo.put("maxConcurrent", source.get("maxConcurrent"));
+                configInfo.put("intervalMinutes", crawlScheduler.getSourceIntervalMinutes(code));
+                configInfo.put("cron", source.get("cron"));
+                configs.add(configInfo);
+            }
+
+            configs.sort(Comparator.comparingInt(m -> (int) m.get("priority")));
+            return Result.success(configs);
+        } catch (Exception e) {
+            log.error("获取平台配置列表失败: {}", e.getMessage(), e);
+            return Result.error("获取配置失败: " + e.getMessage());
         }
     }
 

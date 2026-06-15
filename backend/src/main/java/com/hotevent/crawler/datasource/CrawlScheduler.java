@@ -349,6 +349,65 @@ public class CrawlScheduler {
         }
     }
 
+    public void rescheduleSource(String code) {
+        ScheduledFuture<?> oldFuture = scheduledTasks.remove(code);
+        if (oldFuture != null) {
+            oldFuture.cancel(false);
+            log.info("已取消数据源[{}]的旧定时任务", code);
+        }
+        DataSourceConfig cfg = dataSourceManager.getConfig(code);
+        if (cfg != null && cfg.isEnabled() && dataSourceManager.isSourceEnabled(code)) {
+            scheduleTask(cfg);
+            log.info("已重新调度数据源[{}]的定时任务", code);
+        }
+    }
+
+    public void updateSourceCron(String code, String cron) {
+        DataSourceConfig cfg = dataSourceManager.getConfig(code);
+        if (cfg != null) {
+            cfg.setCron(cron);
+            rescheduleSource(code);
+            log.info("已更新数据源[{}]的cron表达式: {}", code, cron);
+        }
+    }
+
+    public void updateSourceIntervalMinutes(String code, int minutes) {
+        if (minutes <= 0) {
+            throw new IllegalArgumentException("采集间隔必须大于0分钟");
+        }
+        String cron = "0 */" + minutes + " * * * ?";
+        updateSourceCron(code, cron);
+    }
+
+    public int getSourceIntervalMinutes(String code) {
+        DataSourceConfig cfg = dataSourceManager.getConfig(code);
+        if (cfg == null || cfg.getCron() == null) {
+            return 0;
+        }
+        return estimateMinutesFromCron(cfg.getCron());
+    }
+
+    private int estimateMinutesFromCron(String cron) {
+        String[] parts = cron.trim().split("\\s+");
+        if (parts.length < 6) return 60;
+        String min = parts[0];
+        String hr = parts[1];
+        if (min.contains("*/")) {
+            try {
+                return Integer.parseInt(min.substring(2));
+            } catch (Exception ignored) {}
+        }
+        if (hr.contains("*/")) {
+            try {
+                return Integer.parseInt(hr.substring(2)) * 60;
+            } catch (Exception ignored) {}
+        }
+        if (hr.contains(",")) {
+            return 360;
+        }
+        return 60;
+    }
+
     public void shutdown() {
         for (ScheduledFuture<?> f : scheduledTasks.values()) {
             f.cancel(false);

@@ -2,47 +2,144 @@
   <div class="sys-config-management">
     <div class="page-header">
       <h2 class="page-title">系统管理</h2>
-      <el-button type="primary" @click="handleAdd">
-        <el-icon><Plus /></el-icon>
-        <span>新增参数</span>
-      </el-button>
     </div>
 
-    <div class="card">
-      <el-table :data="tableData" v-loading="loading" stripe style="width: 100%">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="configName" label="配置名称" width="220" />
-        <el-table-column prop="configKey" label="配置键" width="260" />
-        <el-table-column prop="configValue" label="配置值" width="200" />
-        <el-table-column prop="description" label="描述" />
-        <el-table-column prop="updateTime" label="更新时间" width="180">
-          <template #default="{ row }">
-            {{ formatDate(row.updateTime) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
-          <template #default="{ row }">
-            <el-button
-              type="primary"
-              link
-              size="small"
-              @click="handleEdit(row)"
-            >
-              编辑
+    <el-tabs v-model="activeTab" class="config-tabs">
+      <el-tab-pane label="系统参数" name="system">
+        <div class="card">
+          <div class="tab-header">
+            <el-button type="primary" @click="handleAdd">
+              <el-icon><Plus /></el-icon>
+              <span>新增参数</span>
             </el-button>
-            <el-button
-              type="danger"
-              link
-              size="small"
-              @click="handleDelete(row)"
-              :disabled="isSystemConfig(row.configKey)"
-            >
-              删除
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </div>
+          </div>
+          <el-table :data="tableData" v-loading="loading" stripe style="width: 100%">
+            <el-table-column prop="id" label="ID" width="80" />
+            <el-table-column prop="configName" label="配置名称" width="220" />
+            <el-table-column prop="configKey" label="配置键" width="260" />
+            <el-table-column prop="configValue" label="配置值" width="200" />
+            <el-table-column prop="description" label="描述" />
+            <el-table-column prop="updateTime" label="更新时间" width="180">
+              <template #default="{ row }">
+                {{ formatDate(row.updateTime) }}
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="180" fixed="right">
+              <template #default="{ row }">
+                <el-button
+                  type="primary"
+                  link
+                  size="small"
+                  @click="handleEdit(row)"
+                >
+                  编辑
+                </el-button>
+                <el-button
+                  type="danger"
+                  link
+                  size="small"
+                  @click="handleDelete(row)"
+                  :disabled="isSystemConfig(row.configKey)"
+                >
+                  删除
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </el-tab-pane>
+
+      <el-tab-pane label="平台配置" name="platform">
+        <div class="card">
+          <div class="tab-header">
+            <span class="tab-desc">配置各数据采集平台的抓取开关和采集间隔</span>
+          </div>
+          <el-table :data="platformList" v-loading="platformLoading" stripe style="width: 100%">
+            <el-table-column prop="name" label="平台名称" width="180">
+              <template #default="{ row }">
+                <div class="platform-name-cell">
+                  <span class="platform-name">{{ row.name }}</span>
+                  <el-tag size="small" :type="getPlatformTypeTag(row.type)">
+                    {{ getPlatformTypeName(row.type) }}
+                  </el-tag>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column prop="code" label="平台标识" width="150" />
+            <el-table-column label="采集状态" width="120">
+              <template #default="{ row }">
+                <el-switch
+                  v-model="row.enabled"
+                  :loading="row.switchLoading"
+                  @change="(val) => handlePlatformToggle(row, val)"
+                  active-text="启用"
+                  inactive-text="禁用"
+                />
+              </template>
+            </el-table-column>
+            <el-table-column label="采集间隔(分钟)" width="180">
+              <template #default="{ row }">
+              <span v-if="row.editing">
+                <el-input-number
+                  v-model="row.editInterval"
+                  :min="1"
+                  :max="1440"
+                  size="small"
+                  style="width: 120px"
+                />
+                <el-button
+                  type="primary"
+                  link
+                  size="small"
+                  @click="saveInterval(row)"
+                  :loading="row.saving"
+                >
+                  保存
+                </el-button>
+                <el-button
+                  link
+                  size="small"
+                  @click="cancelEditInterval(row)"
+                >
+                  取消
+                </el-button>
+              </span>
+              <span v-else>
+                {{ row.intervalMinutes }} 分钟
+                <el-button
+                  type="primary"
+                  link
+                  size="small"
+                  @click="startEditInterval(row)"
+                >
+                  修改
+                </el-button>
+              </span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="priority" label="优先级" width="100" />
+            <el-table-column prop="maxConcurrent" label="最大并发" width="100" />
+            <el-table-column label="Cron表达式" width="200">
+              <template #default="{ row }">
+                <span class="cron-text">{{ row.cron || '-' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="120" fixed="right">
+              <template #default="{ row }">
+                <el-button
+                  type="primary"
+                  link
+                  size="small"
+                  @click="handlePlatformEdit(row)"
+                >
+                  更多配置
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </el-tab-pane>
+    </el-tabs>
 
     <el-dialog
       v-model="dialogVisible"
@@ -81,6 +178,46 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="platformDialogVisible"
+      title="平台配置"
+      width="520px"
+      :close-on-click-modal="false"
+    >
+      <el-form
+        ref="platformFormRef"
+        :model="platformForm"
+        :rules="platformFormRules"
+        label-width="120px"
+      >
+        <el-form-item label="平台名称">
+          <el-input v-model="platformForm.name" disabled />
+        </el-form-item>
+        <el-form-item label="采集开关">
+          <el-switch v-model="platformForm.enabled" active-text="启用" inactive-text="禁用" />
+        </el-form-item>
+        <el-form-item label="采集间隔(分钟)" prop="intervalMinutes">
+          <el-input-number v-model="platformForm.intervalMinutes" :min="1" :max="1440" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="优先级" prop="priority">
+          <el-input-number v-model="platformForm.priority" :min="1" :max="10" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="最大并发数" prop="maxConcurrent">
+          <el-input-number v-model="platformForm.maxConcurrent" :min="1" :max="10" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="Cron表达式">
+          <el-input v-model="platformForm.cron" disabled />
+          <div class="form-tip">采集间隔修改后会自动更新Cron表达式</div>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="platformDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="platformSubmitting" @click="handlePlatformSubmit">
+          确定
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -89,6 +226,12 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
 import { getSysConfigList, createSysConfig, updateSysConfig, deleteSysConfig } from '@/api/sysConfig'
+import {
+  getPlatformConfigs,
+  enablePlatform,
+  disablePlatform,
+  updatePlatformConfig
+} from '@/api/multiCrawler'
 import { useMessageConfigStore } from '@/stores/messageConfig'
 import { useCrawlerConfigStore } from '@/stores/crawlerConfig'
 import message from '@/utils/message'
@@ -97,6 +240,8 @@ const SYSTEM_CONFIG_KEYS = ['maxLoginAttempts', 'loginLockMinutes', 'loginAttemp
 
 const messageConfigStore = useMessageConfigStore()
 const crawlerConfigStore = useCrawlerConfigStore()
+
+const activeTab = ref('system')
 
 const loading = ref(false)
 const tableData = ref([])
@@ -122,12 +267,62 @@ const formRules = {
   configValue: [{ required: true, message: '请输入配置值', trigger: 'blur' }]
 }
 
+const platformLoading = ref(false)
+const platformList = ref([])
+const platformDialogVisible = ref(false)
+const platformSubmitting = ref(false)
+const platformFormRef = ref(null)
+const currentPlatformCode = ref('')
+
+const platformForm = reactive({
+  code: '',
+  name: '',
+  enabled: true,
+  intervalMinutes: 30,
+  priority: 5,
+  maxConcurrent: 2,
+  cron: ''
+})
+
+const platformFormRules = {
+  intervalMinutes: [
+    { required: true, message: '请输入采集间隔', trigger: 'blur' },
+    { type: 'number', min: 1, max: 1440, message: '采集间隔需在1-1440分钟之间', trigger: 'blur' }
+  ],
+  priority: [
+    { required: true, message: '请输入优先级', trigger: 'blur' }
+  ],
+  maxConcurrent: [
+    { required: true, message: '请输入最大并发数', trigger: 'blur' }
+  ]
+}
+
 const isSystemConfig = (configKey) => {
   return SYSTEM_CONFIG_KEYS.includes(configKey)
 }
 
 const formatDate = (date) => {
   return date ? dayjs(date).format('YYYY-MM-DD HH:mm:ss') : '-'
+}
+
+const getPlatformTypeTag = (type) => {
+  const typeMap = {
+    social_media: '',
+    short_video: 'warning',
+    bbs: 'info',
+    government: 'success'
+  }
+  return typeMap[type] || 'info'
+}
+
+const getPlatformTypeName = (type) => {
+  const nameMap = {
+    social_media: '社交媒体',
+    short_video: '短视频',
+    bbs: '论坛',
+    government: '政务'
+  }
+  return nameMap[type] || type
 }
 
 const fetchList = async () => {
@@ -138,6 +333,23 @@ const fetchList = async () => {
   } catch (error) {
   } finally {
     loading.value = false
+  }
+}
+
+const fetchPlatformList = async () => {
+  platformLoading.value = true
+  try {
+    const data = await getPlatformConfigs()
+    platformList.value = data.map(item => ({
+      ...item,
+      switchLoading: false,
+      editing: false,
+      editInterval: item.intervalMinutes,
+      saving: false
+    }))
+  } catch (error) {
+  } finally {
+    platformLoading.value = false
   }
 }
 
@@ -228,8 +440,94 @@ const handleDelete = (row) => {
   }).catch(() => {})
 }
 
+const handlePlatformToggle = async (row, val) => {
+  row.switchLoading = true
+  try {
+    if (val) {
+      await enablePlatform(row.code)
+      message.success(`已启用 ${row.name}`)
+    } else {
+      await disablePlatform(row.code)
+      message.success(`已禁用 ${row.name}`)
+    }
+  } catch (error) {
+    row.enabled = !val
+  } finally {
+    row.switchLoading = false
+  }
+}
+
+const startEditInterval = (row) => {
+  row.editInterval = row.intervalMinutes
+  row.editing = true
+}
+
+const cancelEditInterval = (row) => {
+  row.editing = false
+}
+
+const saveInterval = async (row) => {
+  if (row.editInterval <= 0) {
+    message.warning('采集间隔必须大于0')
+    return
+  }
+  row.saving = true
+  try {
+    await updatePlatformConfig(row.code, {
+      intervalMinutes: row.editInterval
+    })
+    row.intervalMinutes = row.editInterval
+    row.cron = `0 */${row.editInterval} * * * ?`
+    row.editing = false
+    message.success('采集间隔更新成功')
+  } catch (error) {
+  } finally {
+    row.saving = false
+  }
+}
+
+const handlePlatformEdit = (row) => {
+  currentPlatformCode.value = row.code
+  platformForm.code = row.code
+  platformForm.name = row.name
+  platformForm.enabled = row.enabled
+  platformForm.intervalMinutes = row.intervalMinutes
+  platformForm.priority = row.priority
+  platformForm.maxConcurrent = row.maxConcurrent
+  platformForm.cron = row.cron
+  platformDialogVisible.value = true
+}
+
+const handlePlatformSubmit = async () => {
+  if (!platformFormRef.value) return
+  await platformFormRef.value.validate(async (valid) => {
+    if (valid) {
+      platformSubmitting.value = true
+      try {
+        if (platformForm.enabled) {
+          await enablePlatform(currentPlatformCode.value)
+        } else {
+          await disablePlatform(currentPlatformCode.value)
+        }
+        await updatePlatformConfig(currentPlatformCode.value, {
+          intervalMinutes: platformForm.intervalMinutes,
+          priority: platformForm.priority,
+          maxConcurrent: platformForm.maxConcurrent
+        })
+        message.success('平台配置更新成功')
+        platformDialogVisible.value = false
+        fetchPlatformList()
+      } catch (error) {
+      } finally {
+        platformSubmitting.value = false
+      }
+    }
+  })
+}
+
 onMounted(() => {
   fetchList()
+  fetchPlatformList()
 })
 </script>
 
@@ -242,11 +540,54 @@ onMounted(() => {
     margin-bottom: 20px;
   }
 
+  .config-tabs {
+    :deep(.el-tabs__header) {
+      margin-bottom: 16px;
+    }
+  }
+
   .card {
     background: #fff;
     border-radius: 8px;
     padding: 20px;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  }
+
+  .tab-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+
+    .tab-desc {
+      color: #909399;
+      font-size: 14px;
+    }
+  }
+
+  .platform-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .platform-name {
+      font-weight: 500;
+    }
+  }
+
+  .cron-text {
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    color: #606266;
+    background: #f5f7fa;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .form-tip {
+    font-size: 12px;
+    color: #909399;
+    margin-top: 4px;
   }
 }
 </style>
