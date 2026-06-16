@@ -90,10 +90,10 @@ hot-event:
       - en
     translation:
       enabled: true
-      provider: baidu
+      provider: mymemory
       cache-enabled: true
       cache-ttl-hours: 72
-      auto-translate-on-crawl: true
+      auto-translate-on-crawl: false
       baidu:
         app-id: ${BAIDU_TRANSLATE_APP_ID:}
         secret-key: ${BAIDU_TRANSLATE_SECRET_KEY:}
@@ -101,6 +101,9 @@ hot-event:
       google:
         api-key: ${GOOGLE_TRANSLATE_API_KEY:}
         api-url: https://translation.googleapis.com/language/translate/v2
+      my-memory:
+        email: ${MYMEMORY_EMAIL:}
+        api-url: https://api.mymemory.translated.net/get
     nlp:
       segmenter:
         chinese:

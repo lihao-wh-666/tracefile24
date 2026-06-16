@@ -5,10 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.LocaleResolver;
-import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
-import org.springframework.web.servlet.i18n.AcceptHeaderLocaleResolver;
-import org.springframework.web.servlet.i18n.LocaleChangeInterceptor;
 
 import java.util.List;
 import java.util.Locale;
@@ -22,7 +19,7 @@ public class LocaleConfig implements WebMvcConfigurer {
 
     @Bean
     public LocaleResolver localeResolver() {
-        AcceptHeaderLocaleResolver resolver = new AcceptHeaderLocaleResolver() {
+        return new LocaleResolver() {
             @Override
             public Locale resolveLocale(jakarta.servlet.http.HttpServletRequest request) {
                 String lang = request.getParameter("lang");
@@ -51,21 +48,12 @@ public class LocaleConfig implements WebMvcConfigurer {
 
                 return getDefaultLocale();
             }
+
+            @Override
+            public void setLocale(jakarta.servlet.http.HttpServletRequest request, jakarta.servlet.http.HttpServletResponse response, Locale locale) {
+                // 不支持通过响应设置 locale
+            }
         };
-        resolver.setDefaultLocale(getDefaultLocale());
-        return resolver;
-    }
-
-    @Bean
-    public LocaleChangeInterceptor localeChangeInterceptor() {
-        LocaleChangeInterceptor interceptor = new LocaleChangeInterceptor();
-        interceptor.setParamName("lang");
-        return interceptor;
-    }
-
-    @Override
-    public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(localeChangeInterceptor());
     }
 
     private Locale parseLocale(String lang) {

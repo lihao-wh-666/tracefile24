@@ -120,7 +120,7 @@ import { getPlatformName } from '@/utils/platform'
 import dayjs from 'dayjs'
 import message from '@/utils/message'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const router = useRouter()
 const platformConfigStore = usePlatformConfigStore()
 
@@ -157,6 +157,10 @@ const fetchEventList = async () => {
 
     if (searchKeyword.value) {
       params.keyword = searchKeyword.value
+    }
+
+    if (locale.value && locale.value !== 'zh-CN') {
+      params.lang = locale.value
     }
 
     const data = await getHotEventList(params)
@@ -246,8 +250,13 @@ const unwatchEnabledPlatforms = watch(enabledPlatformCodes, () => {
   validateActiveSource()
 }, { deep: true })
 
+const unwatchLocale = watch(locale, () => {
+  fetchEventList()
+})
+
 onUnmounted(() => {
   unwatchEnabledPlatforms()
+  unwatchLocale()
 })
 </script>
 

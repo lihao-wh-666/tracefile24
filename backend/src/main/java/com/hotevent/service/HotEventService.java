@@ -63,7 +63,7 @@ public class HotEventService {
             localizedList.add(localized);
         }
 
-        return new PageResult<>(localizedList, original.getTotal(), original.getPage(), original.getSize());
+        return PageResult.of(localizedList, original.getTotal(), original.getCurrent(), original.getSize());
     }
 
     public HotEvent getHotEventById(Long id) {

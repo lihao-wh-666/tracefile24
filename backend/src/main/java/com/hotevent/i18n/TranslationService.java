@@ -11,6 +11,7 @@ import com.hotevent.i18n.translation.TranslationProvider;
 import com.hotevent.i18n.translation.impl.BaiduTranslationProvider;
 import com.hotevent.i18n.translation.impl.GoogleTranslationProvider;
 import com.hotevent.i18n.translation.impl.InternalTranslationProvider;
+import com.hotevent.i18n.translation.impl.MyMemoryTranslationProvider;
 import com.hotevent.nlp.NlpService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -113,24 +114,26 @@ public class TranslationService {
         String providerName = i18nProperties.getTranslation().getProvider();
         return providers.computeIfAbsent(providerName, name -> {
             switch (name.toLowerCase()) {
+                case "mymemory":
+                    return new MyMemoryTranslationProvider(i18nProperties.getTranslation().getMyMemory(), i18nProperties);
                 case "baidu":
                     I18nProperties.Baidu baiduConfig = i18nProperties.getTranslation().getBaidu();
                     if (baiduConfig.getAppId() != null && !baiduConfig.getAppId().isEmpty() &&
                             baiduConfig.getSecretKey() != null && !baiduConfig.getSecretKey().isEmpty()) {
                         return new BaiduTranslationProvider(baiduConfig, i18nProperties);
                     }
-                    log.warn("[Translation] Baidu credentials not configured, falling back to internal provider");
-                    return new InternalTranslationProvider(nlpService);
+                    log.warn("[Translation] Baidu credentials not configured, falling back to mymemory provider");
+                    return new MyMemoryTranslationProvider(i18nProperties.getTranslation().getMyMemory(), i18nProperties);
                 case "google":
                     I18nProperties.Google googleConfig = i18nProperties.getTranslation().getGoogle();
                     if (googleConfig.getApiKey() != null && !googleConfig.getApiKey().isEmpty()) {
                         return new GoogleTranslationProvider(googleConfig, i18nProperties);
                     }
-                    log.warn("[Translation] Google credentials not configured, falling back to internal provider");
-                    return new InternalTranslationProvider(nlpService);
+                    log.warn("[Translation] Google credentials not configured, falling back to mymemory provider");
+                    return new MyMemoryTranslationProvider(i18nProperties.getTranslation().getMyMemory(), i18nProperties);
                 default:
-                    log.warn("[Translation] Unknown provider: {}, using internal provider", name);
-                    return new InternalTranslationProvider(nlpService);
+                    log.warn("[Translation] Unknown provider: {}, using mymemory provider", name);
+                    return new MyMemoryTranslationProvider(i18nProperties.getTranslation().getMyMemory(), i18nProperties);
             }
         });
     }

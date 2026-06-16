@@ -44,14 +44,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { getHotEventById } from '@/api/event'
 import { getPlatformName } from '@/utils/platform'
 import dayjs from 'dayjs'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 
@@ -62,7 +62,7 @@ const fetchEventDetail = async () => {
   loading.value = true
   try {
     const id = route.params.id
-    event.value = await getHotEventById(id)
+    event.value = await getHotEventById(id, locale.value)
   } catch (error) {
     console.error(t('events.fetchDetailFailed'), error)
   } finally {
@@ -98,6 +98,10 @@ const openSourceUrl = () => {
 }
 
 onMounted(() => {
+  fetchEventDetail()
+})
+
+watch(locale, () => {
   fetchEventDetail()
 })
 </script>

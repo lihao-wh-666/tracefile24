@@ -20,12 +20,13 @@ public class I18nProperties {
     @Data
     public static class Translation {
         private boolean enabled = true;
-        private String provider = "baidu";
+        private String provider = "mymemory";
         private boolean cacheEnabled = true;
         private long cacheTtlHours = 72;
-        private boolean autoTranslateOnCrawl = true;
+        private boolean autoTranslateOnCrawl = false;
         private Baidu baidu = new Baidu();
         private Google google = new Google();
+        private MyMemory myMemory = new MyMemory();
     }
 
     @Data
@@ -39,6 +40,12 @@ public class I18nProperties {
     public static class Google {
         private String apiKey;
         private String apiUrl = "https://translation.googleapis.com/language/translate/v2";
+    }
+
+    @Data
+    public static class MyMemory {
+        private String email;
+        private String apiUrl = "https://api.mymemory.translated.net/get";
     }
 
     @Data
@@ -86,6 +93,15 @@ public class I18nProperties {
             case "zh-CN": return "zh-CN";
             case "zh-TW": return "zh-TW";
             case "en": return "en";
+            default: return "zh-CN";
+        }
+    }
+
+    public String getMyMemoryLanguageCode(String locale) {
+        switch (locale) {
+            case "zh-CN": return "zh-CN";
+            case "zh-TW": return "zh-TW";
+            case "en": return "en-GB";
             default: return "zh-CN";
         }
     }

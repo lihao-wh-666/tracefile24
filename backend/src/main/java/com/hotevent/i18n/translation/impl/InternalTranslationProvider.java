@@ -4,7 +4,7 @@ import com.hotevent.i18n.translation.TranslationProvider;
 import com.hotevent.nlp.NlpService;
 import lombok.extern.slf4j.Slf4j;
 
-@Slf4p
+@Slf4j
 public class InternalTranslationProvider implements TranslationProvider {
 
     private final NlpService nlpService;
@@ -67,7 +67,7 @@ public class InternalTranslationProvider implements TranslationProvider {
     }
 
     private String enToZhCn(String text) {
-        for (Map.Entry<String, String> entry : EN_CATEGORY_MAP.entrySet()) {
+        for (java.util.Map.Entry<String, String> entry : EN_CATEGORY_MAP.entrySet()) {
             if (entry.getValue().equalsIgnoreCase(text)) {
                 return entry.getKey();
             }

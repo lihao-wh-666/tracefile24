@@ -175,7 +175,7 @@ public class NlpService {
 
     private List<String> fallbackSegment(String text) {
         if (text == null || text.trim().isEmpty()) return Collections.emptyList();
-        return Arrays.asList(text.split("[\\s,，。！？；：、""''（）【】《》.!?;:()\\[\\]{}]+"))
+        return Arrays.asList(text.split("[\\s,，。！？；：、\\u201C\\u201D\\u2018\\u2019（）【】《》.!?;:()\\[\\]{}]+"))
                 .stream()
                 .filter(s -> !s.isEmpty())
                 .collect(Collectors.toList());

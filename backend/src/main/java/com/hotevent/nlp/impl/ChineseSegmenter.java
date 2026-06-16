@@ -40,7 +40,7 @@ public class ChineseSegmenter implements TextSegmenter {
                             segmenter = HanLP.newSegment().enableIndexMode(true);
                             break;
                         case "nshortest":
-                            segmenter = HanLP.newSegment().enableAllScheme(true);
+                            segmenter = HanLP.newSegment();
                             break;
                         default:
                             segmenter = HanLP.newSegment();
@@ -69,8 +69,7 @@ public class ChineseSegmenter implements TextSegmenter {
                             .enableNumberQuantifierRecognize(true)
                             .enableNameRecognize(true)
                             .enablePlaceRecognize(true)
-                            .enableOrganizationRecognize(true)
-                            .enableTraditionalChineseMode(true);
+                            .enableOrganizationRecognize(true);
                     log.info("[ChineseSegmenter] Traditional Chinese segmenter initialized");
                 }
             }
@@ -118,7 +117,7 @@ public class ChineseSegmenter implements TextSegmenter {
                     .collect(Collectors.toList());
         } catch (Exception e) {
             log.error("[ChineseSegmenter] Segmentation failed: {}", e.getMessage());
-            return Arrays.asList(text.split("[\\s，。！？；：、""''（）【】《》]+"));
+            return Arrays.asList(text.split("[\\s，。！？；：、\\u201C\\u201D\\u2018\\u2019（）【】《》]+"));
         }
     }
 
