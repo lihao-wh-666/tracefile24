@@ -3,6 +3,8 @@ package com.hotevent.crawler.storage;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.hotevent.crawler.core.DataItem;
+import com.hotevent.crawler.filter.SensitiveCheckResult;
+import com.hotevent.crawler.filter.SensitiveContentFilter;
 import com.hotevent.entity.HotEvent;
 import com.hotevent.repository.HotEventRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +25,9 @@ public class DataStorageService {
 
     @Autowired
     private IncrementalCrawlManager incrementalCrawlManager;
+
+    @Autowired
+    private SensitiveContentFilter sensitiveContentFilter;
 
     private static final int BATCH_SIZE = 50;
 
@@ -80,6 +85,16 @@ public class DataStorageService {
     public SaveResult saveOrUpdate(DataItem item, String source) {
         if (item == null) return new SaveResult(null, SaveStatus.SKIPPED);
         if (StrUtil.isBlank(item.getTitle())) return new SaveResult(null, SaveStatus.SKIPPED);
+
+        SensitiveCheckResult checkResult = sensitiveContentFilter.check(item);
+        if (checkResult.isSensitive()) {
+            log.info("[存储层] 过滤敏感内容: 标题={}, 命中词={}, 类型={}",
+                    item.getTitle(),
+                    checkResult.getMatchedWords(),
+                    checkResult.getMatchedTypes().stream()
+                            .map(t -> t.getDisplayName()).toList());
+            return new SaveResult(null, SaveStatus.SKIPPED);
+        }
 
         String normalizedSource = source != null ? source : item.getPlatform();
         String normalizedTitle = item.getTitle().trim();

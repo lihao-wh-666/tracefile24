@@ -21,6 +21,9 @@ public class SysConfigService {
     public static final String KEY_SESSION_WARNING_MINUTES = "sessionWarningMinutes";
     public static final String KEY_MESSAGE_DURATION = "messageDuration";
     public static final String KEY_CRAWL_INTERVAL_MINUTES = "crawlIntervalMinutes";
+    public static final String KEY_SENSITIVE_FILTER_ENABLED = "sensitiveFilterEnabled";
+    public static final String KEY_SENSITIVE_KEYWORDS_PREFIX = "sensitiveKeywords.";
+    public static final String KEY_SENSITIVE_REGEX_PREFIX = "sensitiveRegex.";
 
     public static final int DEFAULT_MAX_LOGIN_ATTEMPTS = 5;
     public static final int DEFAULT_LOGIN_LOCK_MINUTES = 30;
@@ -29,6 +32,7 @@ public class SysConfigService {
     public static final int DEFAULT_SESSION_WARNING_MINUTES = 5;
     public static final int DEFAULT_MESSAGE_DURATION = 1500;
     public static final int DEFAULT_CRAWL_INTERVAL_MINUTES = 30;
+    public static final boolean DEFAULT_SENSITIVE_FILTER_ENABLED = true;
 
     @Autowired
     private SysConfigRepository sysConfigRepository;
@@ -82,6 +86,27 @@ public class SysConfigService {
 
     public int getCrawlIntervalMinutes() {
         return getIntValue(KEY_CRAWL_INTERVAL_MINUTES, DEFAULT_CRAWL_INTERVAL_MINUTES);
+    }
+
+    public boolean getBooleanValue(String configKey, boolean defaultValue) {
+        try {
+            String value = getValue(configKey, null);
+            return value != null ? Boolean.parseBoolean(value) : defaultValue;
+        } catch (Exception e) {
+            return defaultValue;
+        }
+    }
+
+    public boolean isSensitiveFilterEnabled() {
+        return getBooleanValue(KEY_SENSITIVE_FILTER_ENABLED, DEFAULT_SENSITIVE_FILTER_ENABLED);
+    }
+
+    public String getSensitiveKeywords(String typeCode) {
+        return getValue(KEY_SENSITIVE_KEYWORDS_PREFIX + typeCode, "");
+    }
+
+    public String getSensitiveRegex(String typeCode) {
+        return getValue(KEY_SENSITIVE_REGEX_PREFIX + typeCode, "");
     }
 
     @Transactional
@@ -149,7 +174,10 @@ public class SysConfigService {
                 || KEY_SESSION_TIMEOUT_MINUTES.equals(configKey)
                 || KEY_SESSION_WARNING_MINUTES.equals(configKey)
                 || KEY_MESSAGE_DURATION.equals(configKey)
-                || KEY_CRAWL_INTERVAL_MINUTES.equals(configKey);
+                || KEY_CRAWL_INTERVAL_MINUTES.equals(configKey)
+                || KEY_SENSITIVE_FILTER_ENABLED.equals(configKey)
+                || (configKey != null && configKey.startsWith(KEY_SENSITIVE_KEYWORDS_PREFIX))
+                || (configKey != null && configKey.startsWith(KEY_SENSITIVE_REGEX_PREFIX));
     }
 
     public void initDefaultConfigs() {
@@ -180,6 +208,39 @@ public class SysConfigService {
         if (!sysConfigRepository.existsByConfigKey(KEY_CRAWL_INTERVAL_MINUTES)) {
             save(KEY_CRAWL_INTERVAL_MINUTES, String.valueOf(DEFAULT_CRAWL_INTERVAL_MINUTES),
                     "定时抓取间隔(分钟)", "定时抓取热点事件的时间间隔，修改后实时生效");
+        }
+        if (!sysConfigRepository.existsByConfigKey(KEY_SENSITIVE_FILTER_ENABLED)) {
+            save(KEY_SENSITIVE_FILTER_ENABLED, String.valueOf(DEFAULT_SENSITIVE_FILTER_ENABLED),
+                    "敏感内容过滤开关", "是否启用敏感内容过滤功能，过滤涉政、色情、辱骂、广告等内容");
+        }
+        initSensitiveKeywordConfigs();
+    }
+
+    private void initSensitiveKeywordConfigs() {
+        String[][] defaultConfigs = {
+                {"politics", "涉政敏感词", "法轮功,邪教"},
+                {"porn", "色情敏感词", "色情,黄色,成人,av,性爱"},
+                {"abuse", "辱骂敏感词", "傻逼,蠢货,垃圾,狗娘养,王八蛋,滚蛋"},
+                {"ad", "广告敏感词", "加微信,加qq,代购,代理,刷单,兼职赚钱,网赚"},
+                {"violence", "暴力敏感词", "杀人,自杀,暴力,血腥"},
+                {"gambling", "赌博敏感词", "赌博,博彩,彩票,百家乐,老虎机"},
+                {"drug", "毒品敏感词", "毒品,大麻,可卡因,海洛因"}
+        };
+        for (String[] cfg : defaultConfigs) {
+            String key = KEY_SENSITIVE_KEYWORDS_PREFIX + cfg[0];
+            if (!sysConfigRepository.existsByConfigKey(key)) {
+                save(key, cfg[2], cfg[1], "多个关键词用英文逗号、中文逗号或空格分隔");
+            }
+        }
+        String[][] defaultRegexConfigs = {
+                {"ad", "广告正则表达式", "(微信|wx|vx)[\\s:：]?[a-zA-Z0-9_-]{5,}||(qq|扣扣)[\\s:：]?\\d{5,}||(电话|手机|联系电话)[\\s:：]?1[3-9]\\d{9}"},
+                {"porn", "色情正则表达式", "(www\\.)?[^\\s]*?(porn|sex|xxx|成人|色情)[^\\s]*"}
+        };
+        for (String[] cfg : defaultRegexConfigs) {
+            String key = KEY_SENSITIVE_REGEX_PREFIX + cfg[0];
+            if (!sysConfigRepository.existsByConfigKey(key)) {
+                save(key, cfg[2], cfg[1], "多个正则表达式用 || 分隔");
+            }
         }
     }
 }

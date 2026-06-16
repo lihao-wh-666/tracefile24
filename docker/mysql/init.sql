@@ -97,7 +97,17 @@ INSERT INTO sys_config (config_key, config_value, config_name, description) VALU
 ('loginLockMinutes', '30', '账号锁定时间(分钟)', '超过最大失败次数后账号被锁定的时间'),
 ('loginAttemptWindowMinutes', '30', '登录失败统计窗口(分钟)', '统计登录失败次数的时间窗口'),
 ('sessionTimeoutMinutes', '30', '登录超时时间(分钟)', '用户无操作后自动登出的时间'),
-('sessionWarningMinutes', '5', '超时警告提前时间(分钟)', '在超时前多久弹出提示警告用户')
+('sessionWarningMinutes', '5', '超时警告提前时间(分钟)', '在超时前多久弹出提示警告用户'),
+('sensitiveFilterEnabled', 'true', '敏感内容过滤开关', '是否启用敏感内容过滤功能，过滤涉政、色情、辱骂、广告等内容'),
+('sensitiveKeywords.politics', '法轮功,邪教', '涉政敏感词', '多个关键词用英文逗号、中文逗号或空格分隔'),
+('sensitiveKeywords.porn', '色情,黄色,成人,av,性爱', '色情敏感词', '多个关键词用英文逗号、中文逗号或空格分隔'),
+('sensitiveKeywords.abuse', '傻逼,蠢货,垃圾,狗娘养,王八蛋,滚蛋', '辱骂敏感词', '多个关键词用英文逗号、中文逗号或空格分隔'),
+('sensitiveKeywords.ad', '加微信,加qq,代购,代理,刷单,兼职赚钱,网赚', '广告敏感词', '多个关键词用英文逗号、中文逗号或空格分隔'),
+('sensitiveKeywords.violence', '杀人,自杀,暴力,血腥', '暴力敏感词', '多个关键词用英文逗号、中文逗号或空格分隔'),
+('sensitiveKeywords.gambling', '赌博,博彩,彩票,百家乐,老虎机', '赌博敏感词', '多个关键词用英文逗号、中文逗号或空格分隔'),
+('sensitiveKeywords.drug', '毒品,大麻,可卡因,海洛因', '毒品敏感词', '多个关键词用英文逗号、中文逗号或空格分隔'),
+('sensitiveRegex.ad', '(微信|wx|vx)[\\\\s:：]?[a-zA-Z0-9_-]{5,}||(qq|扣扣)[\\\\s:：]?\\\\d{5,}||(电话|手机|联系电话)[\\\\s:：]?1[3-9]\\\\d{9}', '广告正则表达式', '多个正则表达式用 || 分隔'),
+('sensitiveRegex.porn', '(www\\\\.)?[^\\\\s]*?(porn|sex|xxx|成人|色情)[^\\\\s]*', '色情正则表达式', '多个正则表达式用 || 分隔')
 ON DUPLICATE KEY UPDATE
     config_value = VALUES(config_value),
     config_name = VALUES(config_name),

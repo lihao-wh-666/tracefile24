@@ -6,6 +6,8 @@ import com.hotevent.crawler.monitor.CrawlMonitor;
 import com.hotevent.crawler.storage.IncrementalCrawlManager;
 import com.hotevent.crawler.storage.DataStorageService;
 import com.hotevent.crawler.compliance.RobotsComplianceManager;
+import com.hotevent.crawler.filter.SensitiveCheckResult;
+import com.hotevent.crawler.filter.SensitiveContentFilter;
 import com.hotevent.entity.CrawlRecord;
 import com.hotevent.repository.CrawlRecordRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -41,6 +43,9 @@ public class CrawlScheduler {
 
     @Autowired
     private RobotsComplianceManager robotsManager;
+
+    @Autowired
+    private SensitiveContentFilter sensitiveContentFilter;
 
     private final Map<String, ScheduledFuture<?>> scheduledTasks = new ConcurrentHashMap<>();
     private final Map<String, CrawlTask> runningTasks = new ConcurrentHashMap<>();
@@ -163,8 +168,20 @@ public class CrawlScheduler {
             CrawlResponse overallResp = executeTaskInternal(task, adapter, successReq, failReq, totalItems);
 
             List<DataItem> validItems = new ArrayList<>();
+            int sensitiveFilteredCount = 0;
             for (DataItem item : task.getCollectedItems()) {
                 if (adapter.validateDataItem(item)) {
+                    SensitiveCheckResult checkResult = sensitiveContentFilter.check(item);
+                    if (checkResult.isSensitive()) {
+                        sensitiveFilteredCount++;
+                        log.info("[{}] 过滤敏感内容: 标题={}, 命中词={}, 类型={}",
+                                code,
+                                item.getTitle(),
+                                checkResult.getMatchedWords(),
+                                checkResult.getMatchedTypes().stream()
+                                        .map(t -> t.getDisplayName()).toList());
+                        continue;
+                    }
                     if (item.getItemId() == null || item.getItemId().isEmpty()) {
                         item.setItemId(adapter.generateItemId(item));
                     }
@@ -172,6 +189,9 @@ public class CrawlScheduler {
                 }
             }
             task.setCollectedItems(validItems);
+            if (sensitiveFilteredCount > 0) {
+                log.info("[{}] 敏感内容过滤完成，共过滤 {} 条", code, sensitiveFilteredCount);
+            }
 
             if (task.isIncremental()) {
                 incrementalManager.updateIncrementalState(task);

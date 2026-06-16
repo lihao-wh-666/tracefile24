@@ -49,6 +49,85 @@
         </div>
       </el-tab-pane>
 
+      <el-tab-pane label="敏感内容过滤" name="sensitive">
+        <div class="card">
+          <div class="tab-header">
+            <span class="tab-desc">管理敏感内容过滤规则，过滤涉政、色情、辱骂、广告等内容</span>
+            <div class="tab-actions">
+              <el-switch
+                v-model="sensitiveEnabled"
+                :loading="sensitiveToggleLoading"
+                @change="handleSensitiveToggle"
+                active-text="过滤已启用"
+                inactive-text="过滤已禁用"
+              />
+              <el-button link type="primary" @click="checkContentDialogVisible = true">
+                测试检测
+              </el-button>
+              <el-button link type="primary" @click="handleReloadSensitiveConfig">
+                重新加载配置
+              </el-button>
+            </div>
+          </div>
+          <el-alert
+            type="info"
+            :closable="false"
+            class="sensitive-info"
+            show-icon
+          >
+            <template #title>
+              <span>当前共加载 <b>{{ totalKeywordCount }}</b> 个敏感词，数据采集时会自动过滤命中敏感词的内容</span>
+            </template>
+          </el-alert>
+          <el-collapse v-model="sensitiveActiveNames" class="sensitive-collapse">
+            <el-collapse-item
+              v-for="item in sensitiveTypeList"
+              :key="item.code"
+              :name="item.code"
+            >
+              <template #title>
+                <div class="collapse-title">
+                  <span class="type-name">{{ item.displayName }}</span>
+                  <el-tag size="small" type="info">关键词: {{ item.keywordCount }} 个</el-tag>
+                </div>
+              </template>
+              <div class="type-config-form">
+                <el-form label-width="100px">
+                  <el-form-item label="敏感关键词">
+                    <el-input
+                      v-model="item.editingKeywords"
+                      type="textarea"
+                      :rows="4"
+                      placeholder="多个关键词用英文逗号、中文逗号或空格分隔，例如：加微信,代购,刷单"
+                    />
+                    <div class="form-tip">保存后实时生效</div>
+                  </el-form-item>
+                  <el-form-item label="正则表达式">
+                    <el-input
+                      v-model="item.editingRegex"
+                      type="textarea"
+                      :rows="3"
+                      placeholder="多个正则表达式用 || 分隔，例如：(微信|wx)[\\s:：]?[a-zA-Z0-9_-]{5,}||(qq|扣扣)[\\s:：]?\\d{5,}"
+                    />
+                    <div class="form-tip">可选，用于匹配更复杂的内容模式</div>
+                  </el-form-item>
+                  <el-form-item>
+                    <el-button
+                      type="primary"
+                      :loading="item.saving"
+                      @click="handleSaveTypeConfig(item)"
+                    >
+                      保存
+                    </el-button>
+                    <el-button @click="handleResetTypeConfig(item)">重置</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </el-collapse-item>
+          </el-collapse>
+        </div>
+      </el-tab-pane>
+
       <el-tab-pane label="平台配置" name="platform">
         <div class="card">
           <div class="tab-header">
@@ -180,6 +259,54 @@
     </el-dialog>
 
     <el-dialog
+      v-model="checkContentDialogVisible"
+      title="敏感内容检测测试"
+      width="560px"
+      :close-on-click-modal="false"
+    >
+      <el-form label-width="80px">
+        <el-form-item label="输入内容">
+          <el-input
+            v-model="checkText"
+            type="textarea"
+            :rows="4"
+            placeholder="输入要检测的文本内容..."
+          />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :loading="checkLoading" @click="handleCheckContent">
+            开始检测
+          </el-button>
+        </el-form-item>
+        <el-form-item v-if="checkResult" label="检测结果">
+          <div v-if="checkResult.sensitive" class="check-result-sensitive">
+            <el-alert type="error" :closable="false" show-icon title="检测到敏感内容">
+              <div class="match-details">
+                <div
+                  v-for="(detail, idx) in checkResult.matchedDetails"
+                  :key="idx"
+                  class="match-item"
+                >
+                  <el-tag :type="getMatchTypeTag(detail.type.code)" size="small">
+                    {{ getMatchTypeName(detail.type.code) }}
+                  </el-tag>
+                  <span class="match-word">命中词: <b>{{ detail.matchedWord }}</b></span>
+                  <span class="match-context">上下文: {{ detail.context }}</span>
+                </div>
+              </div>
+            </el-alert>
+          </div>
+          <div v-else class="check-result-safe">
+            <el-alert type="success" :closable="false" show-icon title="内容安全，未检测到敏感内容" />
+          </div>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="checkContentDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
       v-model="platformDialogVisible"
       title="平台配置"
       width="520px"
@@ -232,6 +359,15 @@ import {
   disablePlatform,
   updatePlatformConfig
 } from '@/api/multiCrawler'
+import {
+  getSensitiveStatus,
+  getSensitiveConfig,
+  toggleSensitiveFilter,
+  updateSensitiveKeywords,
+  updateSensitiveRegex,
+  checkSensitiveContent,
+  reloadSensitiveConfig
+} from '@/api/sensitiveContent'
 import { useMessageConfigStore } from '@/stores/messageConfig'
 import { useCrawlerConfigStore } from '@/stores/crawlerConfig'
 import { usePlatformConfigStore } from '@/stores/platformConfig'
@@ -299,6 +435,38 @@ const platformFormRules = {
   ]
 }
 
+const sensitiveEnabled = ref(true)
+const sensitiveToggleLoading = ref(false)
+const sensitiveLoading = ref(false)
+const totalKeywordCount = ref(0)
+const sensitiveActiveNames = ref(['politics', 'porn', 'abuse', 'ad'])
+const sensitiveTypeList = ref([])
+const originalTypeConfigs = ref({})
+
+const checkContentDialogVisible = ref(false)
+const checkText = ref('')
+const checkLoading = ref(false)
+const checkResult = ref(null)
+
+const SENSITIVE_TYPE_MAP = {
+  politics: { displayName: '涉政', tagType: 'danger' },
+  porn: { displayName: '色情', tagType: 'warning' },
+  abuse: { displayName: '辱骂', tagType: 'danger' },
+  ad: { displayName: '广告', tagType: 'warning' },
+  violence: { displayName: '暴力', tagType: 'danger' },
+  gambling: { displayName: '赌博', tagType: 'warning' },
+  drug: { displayName: '毒品', tagType: 'danger' },
+  other: { displayName: '其他', tagType: 'info' }
+}
+
+const getMatchTypeTag = (code) => {
+  return SENSITIVE_TYPE_MAP[code]?.tagType || 'info'
+}
+
+const getMatchTypeName = (code) => {
+  return SENSITIVE_TYPE_MAP[code]?.displayName || code
+}
+
 const isSystemConfig = (configKey) => {
   return SYSTEM_CONFIG_KEYS.includes(configKey)
 }
@@ -364,6 +532,95 @@ const fetchPlatformList = async () => {
   } catch (error) {
   } finally {
     platformLoading.value = false
+  }
+}
+
+const fetchSensitiveStatus = async () => {
+  sensitiveLoading.value = true
+  try {
+    const statusData = await getSensitiveStatus()
+    sensitiveEnabled.value = !!statusData.enabled
+    totalKeywordCount.value = statusData.totalKeywordCount || 0
+
+    const configData = await getSensitiveConfig()
+    const typeConfigs = configData.typeConfigs || {}
+    const typeStats = statusData.typeStats || []
+
+    sensitiveTypeList.value = typeStats.map(stat => {
+      const cfg = typeConfigs[stat.code] || {}
+      return {
+        code: stat.code,
+        displayName: stat.displayName,
+        keywordCount: stat.keywordCount,
+        editingKeywords: cfg.keywords || '',
+        editingRegex: cfg.regex || '',
+        originalKeywords: cfg.keywords || '',
+        originalRegex: cfg.regex || '',
+        saving: false
+      }
+    })
+  } catch (error) {
+  } finally {
+    sensitiveLoading.value = false
+  }
+}
+
+const handleSensitiveToggle = async (val) => {
+  sensitiveToggleLoading.value = true
+  try {
+    const result = await toggleSensitiveFilter(val)
+    sensitiveEnabled.value = !!result.enabled
+    message.success(val ? '敏感内容过滤已启用' : '敏感内容过滤已禁用')
+  } catch (error) {
+    sensitiveEnabled.value = !val
+  } finally {
+    sensitiveToggleLoading.value = false
+  }
+}
+
+const handleSaveTypeConfig = async (item) => {
+  item.saving = true
+  try {
+    await updateSensitiveKeywords(item.code, item.editingKeywords)
+    await updateSensitiveRegex(item.code, item.editingRegex)
+    item.originalKeywords = item.editingKeywords
+    item.originalRegex = item.editingRegex
+    message.success(`${item.displayName}配置已保存`)
+    await fetchSensitiveStatus()
+  } catch (error) {
+  } finally {
+    item.saving = false
+  }
+}
+
+const handleResetTypeConfig = (item) => {
+  item.editingKeywords = item.originalKeywords
+  item.editingRegex = item.originalRegex
+  message.info('已重置')
+}
+
+const handleCheckContent = async () => {
+  if (!checkText.value.trim()) {
+    message.warning('请输入要检测的内容')
+    return
+  }
+  checkLoading.value = true
+  checkResult.value = null
+  try {
+    const result = await checkSensitiveContent(checkText.value.trim())
+    checkResult.value = result
+  } catch (error) {
+  } finally {
+    checkLoading.value = false
+  }
+}
+
+const handleReloadSensitiveConfig = async () => {
+  try {
+    await reloadSensitiveConfig()
+    await fetchSensitiveStatus()
+    message.success('配置已重新加载')
+  } catch (error) {
   }
 }
 
@@ -542,6 +799,7 @@ const handlePlatformSubmit = async () => {
 onMounted(() => {
   fetchList()
   fetchPlatformList()
+  fetchSensitiveStatus()
 })
 </script>
 
@@ -602,6 +860,97 @@ onMounted(() => {
     font-size: 12px;
     color: #909399;
     margin-top: 4px;
+  }
+
+  .tab-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .sensitive-info {
+    margin-bottom: 16px;
+
+    :deep(.el-alert__title) {
+      font-size: 14px;
+    }
+  }
+
+  .sensitive-collapse {
+    border: none;
+
+    :deep(.el-collapse-item__header) {
+      padding-left: 0;
+      padding-right: 0;
+      border-bottom: 1px solid #ebeef5;
+    }
+
+    :deep(.el-collapse-item__wrap) {
+      border-bottom: none;
+    }
+
+    :deep(.el-collapse-item__content) {
+      padding: 16px 0;
+    }
+  }
+
+  .collapse-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 500;
+    font-size: 15px;
+
+    .type-name {
+      font-size: 15px;
+    }
+  }
+
+  .type-config-form {
+    background: #fafbfc;
+    border-radius: 6px;
+    padding: 16px;
+  }
+
+  .check-result-sensitive {
+    width: 100%;
+
+    .match-details {
+      margin-top: 8px;
+    }
+
+    .match-item {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 6px 0;
+      border-bottom: 1px dashed #fecaca;
+
+      &:last-child {
+        border-bottom: none;
+      }
+    }
+
+    .match-word {
+      font-size: 13px;
+
+      b {
+        color: #f56c6c;
+      }
+    }
+
+    .match-context {
+      font-size: 12px;
+      color: #909399;
+      background: #fff;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+  }
+
+  .check-result-safe {
+    width: 100%;
   }
 }
 </style>
