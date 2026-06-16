@@ -1,5 +1,6 @@
 package com.hotevent.service;
 
+import com.hotevent.config.AsyncTaskExecutor;
 import com.hotevent.crawler.AbstractHotEventCrawler;
 import com.hotevent.crawler.HotEventCrawler;
 import com.hotevent.entity.CrawlRecord;
@@ -15,11 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -36,22 +34,26 @@ public class CrawlerService {
     @Autowired
     private CrawlRecordRepository crawlRecordRepository;
 
+    @Autowired
+    private AsyncTaskExecutor asyncTaskExecutor;
+
     private final Map<String, AtomicInteger> consecutiveFailures = new ConcurrentHashMap<>();
 
     private static final int MAX_CONSECUTIVE_FAILURES = 5;
 
     @Transactional
     public void crawlAllSources() {
+        crawlAllSourcesAsync().join();
+    }
+
+    public CompletableFuture<Map<String, Object>> crawlAllSourcesAsync() {
         log.info("========================================");
-        log.info("开始执行全数据源抓取任务");
+        log.info("开始执行全数据源异步并行抓取任务");
         log.info("========================================");
         long globalStartTime = System.currentTimeMillis();
 
-        List<String> successSources = new ArrayList<>();
-        List<String> failedSources = new ArrayList<>();
-        int totalEvents = 0;
-        int totalSuccess = 0;
-        int totalFail = 0;
+        List<HotEventCrawler> enabledCrawlers = new ArrayList<>();
+        List<String> skippedSources = new ArrayList<>();
 
         for (HotEventCrawler crawler : crawlers) {
             if (crawler.isEnabled()) {
@@ -59,49 +61,83 @@ public class CrawlerService {
                 AtomicInteger failCount = consecutiveFailures.computeIfAbsent(source, k -> new AtomicInteger(0));
 
                 if (failCount.get() >= MAX_CONSECUTIVE_FAILURES) {
-                    log.warn("数据源 [{}] 连续失败{}次，已达到最大阈值，本次跳过抓取。" +
-                             "可通过手动触发抓取进行重试", source, MAX_CONSECUTIVE_FAILURES);
-                    failedSources.add(source + "(连续失败过多，跳过)");
-                    continue;
-                }
-
-                try {
-                    CrawlRecord record = crawlSource(crawler);
-                    if ("success".equals(record.getStatus())) {
-                        successSources.add(source);
-                        totalEvents += record.getEventCount() != null ? record.getEventCount() : 0;
-                        totalSuccess += record.getSuccessCount() != null ? record.getSuccessCount() : 0;
-                        totalFail += record.getFailCount() != null ? record.getFailCount() : 0;
-                        failCount.set(0);
-                    } else {
-                        failedSources.add(source);
-                        failCount.incrementAndGet();
-                    }
-                } catch (Exception e) {
-                    log.error("抓取数据源 [{}] 时发生未处理异常", source, e);
-                    failedSources.add(source);
-                    failCount.incrementAndGet();
+                    log.warn("数据源 [{}] 连续失败{}次，已达到最大阈值，本次跳过抓取。",
+                            source, MAX_CONSECUTIVE_FAILURES);
+                    skippedSources.add(source + "(连续失败过多，跳过)");
+                } else {
+                    enabledCrawlers.add(crawler);
                 }
             } else {
                 log.info("数据源 [{}] 已禁用，跳过", crawler.getSourceName());
             }
         }
 
-        long globalCostTime = System.currentTimeMillis() - globalStartTime;
+        List<CompletableFuture<CrawlRecord>> futures = new ArrayList<>();
+        for (HotEventCrawler crawler : enabledCrawlers) {
+            final HotEventCrawler finalCrawler = crawler;
+            CompletableFuture<CrawlRecord> future = asyncTaskExecutor.submitIoTask(
+                    () -> crawlSourceInternal(finalCrawler),
+                    "crawlSource[" + crawler.getSourceName() + "]"
+            );
+            futures.add(future);
+        }
 
-        log.info("========================================");
-        log.info("全数据源抓取任务完成汇总:");
-        log.info("  总耗时: {}ms ({}秒)", globalCostTime, String.format("%.2f", globalCostTime / 1000.0));
-        log.info("  成功数据源 ({}): {}", successSources.size(), successSources);
-        log.info("  失败数据源 ({}): {}", failedSources.size(), failedSources);
-        log.info("  总事件数: {}", totalEvents);
-        log.info("  总成功保存: {}", totalSuccess);
-        log.info("  总失败保存: {}", totalFail);
-        log.info("========================================");
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                .thenApply(v -> {
+                    List<String> successSources = new ArrayList<>();
+                    List<String> failedSources = new ArrayList<>(skippedSources);
+                    int totalEvents = 0;
+                    int totalSuccess = 0;
+                    int totalFail = 0;
+
+                    for (CompletableFuture<CrawlRecord> future : futures) {
+                        CrawlRecord record = future.join();
+                        if (record != null) {
+                            String source = record.getSource();
+                            if ("success".equals(record.getStatus())) {
+                                successSources.add(source);
+                                totalEvents += record.getEventCount() != null ? record.getEventCount() : 0;
+                                totalSuccess += record.getSuccessCount() != null ? record.getSuccessCount() : 0;
+                                totalFail += record.getFailCount() != null ? record.getFailCount() : 0;
+                                consecutiveFailures.computeIfAbsent(source, k -> new AtomicInteger(0)).set(0);
+                            } else {
+                                failedSources.add(source);
+                                consecutiveFailures.computeIfAbsent(source, k -> new AtomicInteger(0)).incrementAndGet();
+                            }
+                        }
+                    }
+
+                    long globalCostTime = System.currentTimeMillis() - globalStartTime;
+
+                    log.info("========================================");
+                    log.info("全数据源异步并行抓取任务完成汇总:");
+                    log.info("  总耗时: {}ms ({}秒)", globalCostTime, String.format("%.2f", globalCostTime / 1000.0));
+                    log.info("  并行抓取数据源数量: {}", enabledCrawlers.size());
+                    log.info("  成功数据源 ({}): {}", successSources.size(), successSources);
+                    log.info("  失败数据源 ({}): {}", failedSources.size(), failedSources);
+                    log.info("  总事件数: {}", totalEvents);
+                    log.info("  总成功保存: {}", totalSuccess);
+                    log.info("  总失败保存: {}", totalFail);
+                    log.info("========================================");
+
+                    Map<String, Object> result = new LinkedHashMap<>();
+                    result.put("totalCostTimeMs", globalCostTime);
+                    result.put("successSources", successSources);
+                    result.put("failedSources", failedSources);
+                    result.put("totalEvents", totalEvents);
+                    result.put("totalSuccess", totalSuccess);
+                    result.put("totalFail", totalFail);
+                    result.put("isAsync", true);
+                    return result;
+                });
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public CrawlRecord crawlSource(HotEventCrawler crawler) {
+        return crawlSourceInternal(crawler);
+    }
+
+    private CrawlRecord crawlSourceInternal(HotEventCrawler crawler) {
         String source = crawler.getSourceName();
         log.info("---------- 开始抓取 [{}] ----------", source);
         long startTime = System.currentTimeMillis();
@@ -188,18 +224,27 @@ public class CrawlerService {
         return crawlRecordRepository.save(record);
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public CrawlRecord crawlSourceByName(String sourceName) {
+    public CompletableFuture<CrawlRecord> crawlSourceAsyncByName(String sourceName) {
         AtomicInteger failCount = consecutiveFailures.computeIfAbsent(sourceName, k -> new AtomicInteger(0));
         failCount.set(0);
-        log.info("手动触发数据源 [{}] 抓取，已重置连续失败计数", sourceName);
+        log.info("手动触发数据源 [{}] 异步抓取，已重置连续失败计数", sourceName);
 
         for (HotEventCrawler crawler : crawlers) {
             if (crawler.getSourceName().equals(sourceName) && crawler.isEnabled()) {
-                return crawlSource(crawler);
+                return asyncTaskExecutor.submitIoTask(
+                        () -> crawlSourceInternal(crawler),
+                        "crawlSourceByName[" + sourceName + "]"
+                );
             }
         }
-        throw new RuntimeException("未找到数据源: " + sourceName);
+        CompletableFuture<CrawlRecord> failedFuture = new CompletableFuture<>();
+        failedFuture.completeExceptionally(new RuntimeException("未找到数据源: " + sourceName));
+        return failedFuture;
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public CrawlRecord crawlSourceByName(String sourceName) {
+        return crawlSourceAsyncByName(sourceName).join();
     }
 
     @Transactional(propagation = Propagation.REQUIRED)

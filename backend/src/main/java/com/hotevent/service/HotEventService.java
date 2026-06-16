@@ -1,6 +1,7 @@
 package com.hotevent.service;
 
 import com.hotevent.common.PageResult;
+import com.hotevent.config.AsyncTaskExecutor;
 import com.hotevent.entity.EventTranslation;
 import com.hotevent.entity.HotEvent;
 import com.hotevent.i18n.I18nProperties;
@@ -17,6 +18,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
@@ -33,6 +36,11 @@ public class HotEventService {
 
     @Autowired
     private I18nProperties i18nProperties;
+
+    @Autowired
+    private AsyncTaskExecutor asyncTaskExecutor;
+
+    private final Map<String, EventTranslation> translationCacheLocal = new ConcurrentHashMap<>();
 
     public PageResult<HotEvent> getHotEventList(String source, String keyword, int page, int size) {
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "hotValue"));
@@ -55,15 +63,40 @@ public class HotEventService {
     }
 
     public PageResult<Map<String, Object>> getHotEventListLocalized(String source, String keyword, int page, int size, String lang) {
-        PageResult<HotEvent> original = getHotEventList(source, keyword, page, size);
+        return getHotEventListLocalizedAsync(source, keyword, page, size, lang).join();
+    }
 
-        List<Map<String, Object>> localizedList = new ArrayList<>();
-        for (HotEvent event : original.getRecords()) {
-            Map<String, Object> localized = localizeHotEvent(event, lang);
-            localizedList.add(localized);
+    public CompletableFuture<PageResult<Map<String, Object>>> getHotEventListLocalizedAsync(
+            String source, String keyword, int page, int size, String lang) {
+        PageResult<HotEvent> original = getHotEventList(source, keyword, page, size);
+        List<HotEvent> events = original.getRecords();
+
+        if (lang == null || lang.isEmpty() || "zh-CN".equals(lang) || events.isEmpty()) {
+            List<Map<String, Object>> localizedList = new ArrayList<>();
+            for (HotEvent event : events) {
+                localizedList.add(hotEventToMap(event));
+            }
+            return CompletableFuture.completedFuture(
+                    PageResult.of(localizedList, original.getTotal(), original.getCurrent(), original.getSize())
+            );
         }
 
-        return PageResult.of(localizedList, original.getTotal(), original.getCurrent(), original.getSize());
+        List<CompletableFuture<Map<String, Object>>> futures = new ArrayList<>();
+        for (HotEvent event : events) {
+            futures.add(localizeHotEventAsync(event, lang));
+        }
+
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                .thenApply(v -> {
+                    List<Map<String, Object>> localizedList = new ArrayList<>();
+                    for (CompletableFuture<Map<String, Object>> future : futures) {
+                        Map<String, Object> result = future.join();
+                        if (result != null) {
+                            localizedList.add(result);
+                        }
+                    }
+                    return PageResult.of(localizedList, original.getTotal(), original.getCurrent(), original.getSize());
+                });
     }
 
     public HotEvent getHotEventById(Long id) {
@@ -76,17 +109,30 @@ public class HotEventService {
         return localizeHotEvent(event, lang);
     }
 
+    public CompletableFuture<Map<String, Object>> getHotEventByIdLocalizedAsync(Long id, String lang) {
+        HotEvent event = getHotEventById(id);
+        if (event == null) return CompletableFuture.completedFuture(null);
+        return localizeHotEventAsync(event, lang);
+    }
+
     public Map<String, Object> localizeHotEvent(HotEvent event, String targetLang) {
         if (event == null) return null;
         if (targetLang == null || targetLang.isEmpty() || "zh-CN".equals(targetLang)) {
             return hotEventToMap(event);
         }
 
-        Optional<EventTranslation> existingTranslation = eventTranslationRepository
-                .findByEventIdAndLanguage(event.getId(), targetLang);
+        String cacheKey = event.getId() + "_" + targetLang;
+        EventTranslation cachedTranslation = translationCacheLocal.get(cacheKey);
+
+        Optional<EventTranslation> existingTranslation = cachedTranslation != null
+                ? Optional.of(cachedTranslation)
+                : eventTranslationRepository.findByEventIdAndLanguage(event.getId(), targetLang);
 
         if (existingTranslation.isPresent()) {
             EventTranslation translation = existingTranslation.get();
+            if (cachedTranslation == null) {
+                translationCacheLocal.put(cacheKey, translation);
+            }
             Map<String, Object> map = hotEventToMap(event);
             if (translation.getTitle() != null) map.put("title", translation.getTitle());
             if (translation.getDescription() != null) map.put("description", translation.getDescription());
@@ -116,6 +162,68 @@ public class HotEventService {
         return map;
     }
 
+    public CompletableFuture<Map<String, Object>> localizeHotEventAsync(HotEvent event, String targetLang) {
+        if (event == null) return CompletableFuture.completedFuture(null);
+        if (targetLang == null || targetLang.isEmpty() || "zh-CN".equals(targetLang)) {
+            return CompletableFuture.completedFuture(hotEventToMap(event));
+        }
+
+        final String cacheKey = event.getId() + "_" + targetLang;
+        EventTranslation cachedTranslation = translationCacheLocal.get(cacheKey);
+
+        if (cachedTranslation != null) {
+            Map<String, Object> map = hotEventToMap(event);
+            if (cachedTranslation.getTitle() != null) map.put("title", cachedTranslation.getTitle());
+            if (cachedTranslation.getDescription() != null) map.put("description", cachedTranslation.getDescription());
+            if (cachedTranslation.getCategory() != null) map.put("category", cachedTranslation.getCategory());
+            map.put("translatedLanguage", targetLang);
+            map.put("isTranslated", true);
+            return CompletableFuture.completedFuture(map);
+        }
+
+        return asyncTaskExecutor.submitIoTask(() -> {
+            Optional<EventTranslation> existingTranslation =
+                    eventTranslationRepository.findByEventIdAndLanguage(event.getId(), targetLang);
+
+            if (existingTranslation.isPresent()) {
+                EventTranslation translation = existingTranslation.get();
+                translationCacheLocal.put(cacheKey, translation);
+                Map<String, Object> map = hotEventToMap(event);
+                if (translation.getTitle() != null) map.put("title", translation.getTitle());
+                if (translation.getDescription() != null) map.put("description", translation.getDescription());
+                if (translation.getCategory() != null) map.put("category", translation.getCategory());
+                map.put("translatedLanguage", targetLang);
+                map.put("isTranslated", true);
+                return map;
+            }
+            return null;
+        }, "findTranslation[eventId=" + event.getId() + ",lang=" + targetLang + "]")
+        .thenCompose(dbResult -> {
+            if (dbResult != null) {
+                return CompletableFuture.completedFuture(dbResult);
+            }
+
+            return translationService.translateEventAsync(
+                    event.getTitle(),
+                    event.getDescription(),
+                    event.getCategory(),
+                    "zh-CN",
+                    targetLang
+            ).thenApply(translated -> {
+                Map<String, Object> map = hotEventToMap(event);
+                if (translated.containsKey("title")) map.put("title", translated.get("title"));
+                if (translated.containsKey("description")) map.put("description", translated.get("description"));
+                if (translated.containsKey("category")) map.put("category", translated.get("category"));
+                map.put("translatedLanguage", targetLang);
+                map.put("isTranslated", true);
+
+                saveTranslationAsync(event, targetLang, translated);
+
+                return map;
+            });
+        });
+    }
+
     private void saveTranslation(HotEvent event, String targetLang, Map<String, Object> translated) {
         try {
             EventTranslation translation = new EventTranslation();
@@ -127,13 +235,29 @@ public class HotEventService {
             translation.setTranslationProvider(translationService.getActiveProvider());
             translation.setIsVerified(false);
             eventTranslationRepository.save(translation);
+
+            String cacheKey = event.getId() + "_" + targetLang;
+            translationCacheLocal.put(cacheKey, translation);
         } catch (Exception e) {
             log.warn("Failed to save translation for event {}: {}", event.getId(), e.getMessage());
         }
     }
 
+    private void saveTranslationAsync(HotEvent event, String targetLang, Map<String, Object> translated) {
+        asyncTaskExecutor.submitIoRunnable(() -> saveTranslation(event, targetLang, translated),
+                "saveTranslation[eventId=" + event.getId() + ",lang=" + targetLang + "]");
+    }
+
     public void autoTranslateEvent(HotEvent event) {
-        if (!i18nProperties.getTranslation().isAutoTranslateOnCrawl()) return;
+        autoTranslateEventAsync(event);
+    }
+
+    public CompletableFuture<Void> autoTranslateEventAsync(HotEvent event) {
+        if (!i18nProperties.getTranslation().isAutoTranslateOnCrawl()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         for (String targetLang : i18nProperties.getSupportedLocales()) {
             if ("zh-CN".equals(targetLang)) continue;
@@ -142,19 +266,24 @@ public class HotEventService {
                 continue;
             }
 
-            try {
-                Map<String, Object> translated = translationService.translateEvent(
-                        event.getTitle(),
-                        event.getDescription(),
-                        event.getCategory(),
-                        "zh-CN",
-                        targetLang
-                );
-                saveTranslation(event, targetLang, translated);
-            } catch (Exception e) {
-                log.warn("Auto-translation failed for event {} to {}: {}", event.getId(), targetLang, e.getMessage());
-            }
+            CompletableFuture<Void> future = translationService.translateEventAsync(
+                    event.getTitle(),
+                    event.getDescription(),
+                    event.getCategory(),
+                    "zh-CN",
+                    targetLang
+            ).thenAccept(translated -> {
+                if (translated != null) {
+                    saveTranslation(event, targetLang, translated);
+                }
+            }).exceptionally(ex -> {
+                log.warn("Auto-translation failed for event {} to {}: {}", event.getId(), targetLang, ex.getMessage());
+                return null;
+            });
+            futures.add(future);
         }
+
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
 
     private Map<String, Object> hotEventToMap(HotEvent event) {
@@ -186,35 +315,85 @@ public class HotEventService {
     }
 
     public Map<String, Object> getStatistics() {
-        Map<String, Object> statistics = new HashMap<>();
+        Map<String, Object> statistics = new LinkedHashMap<>();
 
-        List<Object[]> sourceCounts = hotEventRepository.countBySource();
-        Map<String, Long> sourceStats = new HashMap<>();
-        long totalCount = 0;
-        for (Object[] row : sourceCounts) {
-            String source = (String) row[0];
-            Long count = (Long) row[1];
-            sourceStats.put(source, count);
-            totalCount += count;
-        }
-        statistics.put("sourceStats", sourceStats);
-        statistics.put("totalCount", totalCount);
+        CompletableFuture<List<Object[]>> sourceCountsFuture = CompletableFuture.supplyAsync(
+                hotEventRepository::countBySource,
+                asyncTaskExecutor.getIoExecutor()
+        );
+        CompletableFuture<List<Object[]>> categoryCountsFuture = CompletableFuture.supplyAsync(
+                hotEventRepository::countByCategory,
+                asyncTaskExecutor.getIoExecutor()
+        );
+        CompletableFuture<List<HotEvent>> topEventsFuture = CompletableFuture.supplyAsync(() -> {
+            LocalDateTime startTime = LocalDateTime.now().minusHours(24);
+            return hotEventRepository.findTopHotEvents(startTime, PageRequest.of(0, 10));
+        }, asyncTaskExecutor.getIoExecutor());
 
-        List<Object[]> categoryCounts = hotEventRepository.countByCategory();
-        Map<String, Long> categoryStats = new HashMap<>();
-        for (Object[] row : categoryCounts) {
-            String category = (String) row[0];
-            Long count = (Long) row[1];
-            categoryStats.put(category, count);
-        }
-        statistics.put("categoryStats", categoryStats);
+        return CompletableFuture.allOf(sourceCountsFuture, categoryCountsFuture, topEventsFuture)
+                .thenApply(v -> {
+                    Map<String, Long> sourceStats = new LinkedHashMap<>();
+                    long totalCount = 0;
+                    for (Object[] row : sourceCountsFuture.join()) {
+                        String source = (String) row[0];
+                        Long count = (Long) row[1];
+                        sourceStats.put(source, count);
+                        totalCount += count;
+                    }
+                    statistics.put("sourceStats", sourceStats);
+                    statistics.put("totalCount", totalCount);
 
-        LocalDateTime startTime = LocalDateTime.now().minusHours(24);
-        List<HotEvent> topEvents = hotEventRepository.findTopHotEvents(
-                startTime, PageRequest.of(0, 10));
-        statistics.put("topEvents", topEvents);
+                    Map<String, Long> categoryStats = new LinkedHashMap<>();
+                    for (Object[] row : categoryCountsFuture.join()) {
+                        String category = (String) row[0];
+                        Long count = (Long) row[1];
+                        categoryStats.put(category, count);
+                    }
+                    statistics.put("categoryStats", categoryStats);
+                    statistics.put("topEvents", topEventsFuture.join());
+                    return statistics;
+                }).join();
+    }
 
-        return statistics;
+    public CompletableFuture<Map<String, Object>> getStatisticsAsync() {
+        Map<String, Object> statistics = new LinkedHashMap<>();
+
+        CompletableFuture<List<Object[]>> sourceCountsFuture = CompletableFuture.supplyAsync(
+                hotEventRepository::countBySource,
+                asyncTaskExecutor.getIoExecutor()
+        );
+        CompletableFuture<List<Object[]>> categoryCountsFuture = CompletableFuture.supplyAsync(
+                hotEventRepository::countByCategory,
+                asyncTaskExecutor.getIoExecutor()
+        );
+        CompletableFuture<List<HotEvent>> topEventsFuture = CompletableFuture.supplyAsync(() -> {
+            LocalDateTime startTime = LocalDateTime.now().minusHours(24);
+            return hotEventRepository.findTopHotEvents(startTime, PageRequest.of(0, 10));
+        }, asyncTaskExecutor.getIoExecutor());
+
+        return CompletableFuture.allOf(sourceCountsFuture, categoryCountsFuture, topEventsFuture)
+                .thenApply(v -> {
+                    Map<String, Long> sourceStats = new LinkedHashMap<>();
+                    long totalCount = 0;
+                    for (Object[] row : sourceCountsFuture.join()) {
+                        String source = (String) row[0];
+                        Long count = (Long) row[1];
+                        sourceStats.put(source, count);
+                        totalCount += count;
+                    }
+                    statistics.put("sourceStats", sourceStats);
+                    statistics.put("totalCount", totalCount);
+
+                    Map<String, Long> categoryStats = new LinkedHashMap<>();
+                    for (Object[] row : categoryCountsFuture.join()) {
+                        String category = (String) row[0];
+                        Long count = (Long) row[1];
+                        categoryStats.put(category, count);
+                    }
+                    statistics.put("categoryStats", categoryStats);
+                    statistics.put("topEvents", topEventsFuture.join());
+                    return statistics;
+                });
     }
 
     public List<HotEvent> getHotEventsBySourceAndTimeRange(String source, LocalDateTime startTime, LocalDateTime endTime) {
@@ -233,11 +412,10 @@ public class HotEventService {
 
     public HotEvent saveHotEvent(HotEvent hotEvent) {
         HotEvent saved = hotEventRepository.save(hotEvent);
-        try {
-            autoTranslateEvent(saved);
-        } catch (Exception e) {
-            log.warn("Auto-translation on save failed for event {}: {}", saved.getId(), e.getMessage());
-        }
+        autoTranslateEventAsync(saved).exceptionally(ex -> {
+            log.warn("Auto-translation on save failed for event {}: {}", saved.getId(), ex.getMessage());
+            return null;
+        });
         return saved;
     }
 
@@ -264,6 +442,11 @@ public class HotEventService {
             translation.setTranslationProvider("manual");
             translation.setIsVerified(true);
         }
-        return eventTranslationRepository.save(translation);
+        EventTranslation saved = eventTranslationRepository.save(translation);
+
+        String cacheKey = eventId + "_" + language;
+        translationCacheLocal.put(cacheKey, saved);
+
+        return saved;
     }
 }

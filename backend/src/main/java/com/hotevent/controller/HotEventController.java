@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/events")
@@ -24,9 +25,16 @@ public class HotEventController {
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) String lang) {
+            @RequestParam(required = false) String lang,
+            @RequestParam(defaultValue = "false") boolean async) {
 
         if (lang != null && !lang.isEmpty() && !"zh-CN".equals(lang)) {
+            if (async) {
+                CompletableFuture<PageResult<Map<String, Object>>> future =
+                        hotEventService.getHotEventListLocalizedAsync(source, keyword, page, size, lang);
+                PageResult<Map<String, Object>> result = future.join();
+                return Result.success(result);
+            }
             PageResult<Map<String, Object>> result = hotEventService.getHotEventListLocalized(source, keyword, page, size, lang);
             return Result.success(result);
         }
@@ -38,9 +46,19 @@ public class HotEventController {
     @GetMapping("/{id}")
     public Result<?> getHotEventById(
             @PathVariable Long id,
-            @RequestParam(required = false) String lang) {
+            @RequestParam(required = false) String lang,
+            @RequestParam(defaultValue = "false") boolean async) {
 
         if (lang != null && !lang.isEmpty() && !"zh-CN".equals(lang)) {
+            if (async) {
+                CompletableFuture<Map<String, Object>> future =
+                        hotEventService.getHotEventByIdLocalizedAsync(id, lang);
+                Map<String, Object> event = future.join();
+                if (event == null) {
+                    return Result.error("热点事件不存在");
+                }
+                return Result.success(event);
+            }
             Map<String, Object> event = hotEventService.getHotEventByIdLocalized(id, lang);
             if (event == null) {
                 return Result.error("热点事件不存在");
@@ -62,7 +80,12 @@ public class HotEventController {
     }
 
     @GetMapping("/statistics")
-    public Result<Map<String, Object>> getStatistics() {
+    public Result<Map<String, Object>> getStatistics(
+            @RequestParam(defaultValue = "false") boolean async) {
+        if (async) {
+            CompletableFuture<Map<String, Object>> future = hotEventService.getStatisticsAsync();
+            return Result.success(future.join());
+        }
         Map<String, Object> statistics = hotEventService.getStatistics();
         return Result.success(statistics);
     }

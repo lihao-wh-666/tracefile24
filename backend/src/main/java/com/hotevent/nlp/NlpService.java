@@ -1,5 +1,6 @@
 package com.hotevent.nlp;
 
+import com.hotevent.config.AsyncTaskExecutor;
 import com.hotevent.nlp.impl.ChineseSegmenter;
 import com.hotevent.nlp.impl.EnglishSegmenter;
 import lombok.extern.slf4j.Slf4j;
@@ -7,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -18,6 +20,9 @@ public class NlpService {
 
     @Autowired
     private EnglishSegmenter englishSegmenter;
+
+    @Autowired
+    private AsyncTaskExecutor asyncTaskExecutor;
 
     private static final Map<String, String> LANGUAGE_NAMES = Map.of(
             "zh-CN", "简体中文",
@@ -33,9 +38,19 @@ public class NlpService {
         return fallbackSegment(text);
     }
 
+    public CompletableFuture<List<String>> segmentAsync(String text, String language) {
+        return asyncTaskExecutor.submitCpuTask(() -> segment(text, language),
+                "segment[" + (text != null ? text.length() : 0) + "chars," + language + "]");
+    }
+
     public List<String> segmentAuto(String text) {
         String lang = detectLanguage(text);
         return segment(text, lang);
+    }
+
+    public CompletableFuture<List<String>> segmentAutoAsync(String text) {
+        return asyncTaskExecutor.submitCpuTask(() -> segmentAuto(text),
+                "segmentAuto[" + (text != null ? text.length() : 0) + "chars]");
     }
 
     public List<String> segmentWithPos(String text, String language) {
@@ -46,12 +61,22 @@ public class NlpService {
         return fallbackSegment(text);
     }
 
+    public CompletableFuture<List<String>> segmentWithPosAsync(String text, String language) {
+        return asyncTaskExecutor.submitCpuTask(() -> segmentWithPos(text, language),
+                "segmentWithPos[" + (text != null ? text.length() : 0) + "chars," + language + "]");
+    }
+
     public List<String> extractKeywords(String text, String language, int count) {
         TextSegmenter segmenter = getSegmenter(language);
         if (segmenter != null) {
             return segmenter.extractKeywords(text, count);
         }
         return segmentAuto(text).stream().limit(count).collect(Collectors.toList());
+    }
+
+    public CompletableFuture<List<String>> extractKeywordsAsync(String text, String language, int count) {
+        return asyncTaskExecutor.submitCpuTask(() -> extractKeywords(text, language, count),
+                "extractKeywords[" + (text != null ? text.length() : 0) + "chars," + language + ",top" + count + "]");
     }
 
     public Map<String, Double> extractKeywordsWithScore(String text, String language, int count) {
@@ -62,12 +87,22 @@ public class NlpService {
         return Collections.emptyMap();
     }
 
+    public CompletableFuture<Map<String, Double>> extractKeywordsWithScoreAsync(String text, String language, int count) {
+        return asyncTaskExecutor.submitCpuTask(() -> extractKeywordsWithScore(text, language, count),
+                "extractKeywordsWithScore[" + (text != null ? text.length() : 0) + "chars," + language + ",top" + count + "]");
+    }
+
     public List<String> extractPhrases(String text, String language, int count) {
         TextSegmenter segmenter = getSegmenter(language);
         if (segmenter != null) {
             return segmenter.extractPhrases(text, count);
         }
         return Collections.emptyList();
+    }
+
+    public CompletableFuture<List<String>> extractPhrasesAsync(String text, String language, int count) {
+        return asyncTaskExecutor.submitCpuTask(() -> extractPhrases(text, language, count),
+                "extractPhrases[" + (text != null ? text.length() : 0) + "chars," + language + ",top" + count + "]");
     }
 
     public String detectLanguage(String text) {
@@ -120,8 +155,18 @@ public class NlpService {
         return chineseSegmenter.convertToSimplified(text);
     }
 
+    public CompletableFuture<String> convertToSimplifiedAsync(String text) {
+        return asyncTaskExecutor.submitCpuTask(() -> convertToSimplified(text),
+                "convertToSimplified[" + (text != null ? text.length() : 0) + "chars]");
+    }
+
     public String convertToTraditional(String text) {
         return chineseSegmenter.convertToTraditional(text);
+    }
+
+    public CompletableFuture<String> convertToTraditionalAsync(String text) {
+        return asyncTaskExecutor.submitCpuTask(() -> convertToTraditional(text),
+                "convertToTraditional[" + (text != null ? text.length() : 0) + "chars]");
     }
 
     public boolean isTraditionalChinese(String text) {
@@ -158,6 +203,68 @@ public class NlpService {
         }
 
         return result;
+    }
+
+    public CompletableFuture<Map<String, Object>> analyzeTextAsync(String text, String language) {
+        if (language == null || language.isEmpty()) {
+            language = detectLanguage(text);
+        }
+
+        final String finalLanguage = language;
+        final String textSnapshot = text;
+
+        CompletableFuture<List<String>> tokensFuture = segmentAsync(textSnapshot, finalLanguage);
+        CompletableFuture<List<String>> keywordsFuture = extractKeywordsAsync(textSnapshot, finalLanguage, 10);
+        CompletableFuture<Map<String, Double>> keywordScoresFuture = extractKeywordsWithScoreAsync(textSnapshot, finalLanguage, 10);
+        CompletableFuture<List<String>> phrasesFuture = extractPhrasesAsync(textSnapshot, finalLanguage, 5);
+
+        List<CompletableFuture<?>> futures = new ArrayList<>();
+        futures.add(tokensFuture);
+        futures.add(keywordsFuture);
+        futures.add(keywordScoresFuture);
+        futures.add(phrasesFuture);
+
+        CompletableFuture<String> simplifiedFuture = null;
+        CompletableFuture<String> traditionalFuture = null;
+        CompletableFuture<Boolean> isTraditionalFuture = null;
+
+        if ("zh-CN".equals(finalLanguage) || "zh-TW".equals(finalLanguage)) {
+            simplifiedFuture = convertToSimplifiedAsync(textSnapshot);
+            traditionalFuture = convertToTraditionalAsync(textSnapshot);
+            isTraditionalFuture = asyncTaskExecutor.submitCpuTask(() -> isTraditionalChinese(textSnapshot),
+                    "isTraditionalChinese");
+            futures.add(simplifiedFuture);
+            futures.add(traditionalFuture);
+            futures.add(isTraditionalFuture);
+        }
+
+        final CompletableFuture<String> finalSimplifiedFuture = simplifiedFuture;
+        final CompletableFuture<String> finalTraditionalFuture = traditionalFuture;
+        final CompletableFuture<Boolean> finalIsTraditionalFuture = isTraditionalFuture;
+
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                .thenApply(v -> {
+                    Map<String, Object> result = new LinkedHashMap<>();
+                    result.put("text", textSnapshot);
+                    result.put("detectedLanguage", finalLanguage);
+                    result.put("languageName", LANGUAGE_NAMES.getOrDefault(finalLanguage, finalLanguage));
+
+                    List<String> tokens = tokensFuture.join();
+                    result.put("tokens", tokens);
+                    result.put("tokenCount", tokens != null ? tokens.size() : 0);
+
+                    result.put("keywords", keywordsFuture.join());
+                    result.put("keywordScores", keywordScoresFuture.join());
+                    result.put("phrases", phrasesFuture.join());
+
+                    if ("zh-CN".equals(finalLanguage) || "zh-TW".equals(finalLanguage)) {
+                        result.put("isTraditionalChinese", finalIsTraditionalFuture != null ? finalIsTraditionalFuture.join() : false);
+                        result.put("simplifiedVersion", finalSimplifiedFuture != null ? finalSimplifiedFuture.join() : textSnapshot);
+                        result.put("traditionalVersion", finalTraditionalFuture != null ? finalTraditionalFuture.join() : textSnapshot);
+                    }
+
+                    return result;
+                });
     }
 
     private TextSegmenter getSegmenter(String language) {

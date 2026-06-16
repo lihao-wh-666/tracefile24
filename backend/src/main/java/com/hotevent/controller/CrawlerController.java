@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @RestController
@@ -19,11 +20,26 @@ public class CrawlerController {
     private CrawlerService crawlerService;
 
     @PostMapping("/crawl-all")
-    public Result<String> crawlAllSources() {
+    public Result<String> crawlAllSources(
+            @RequestParam(defaultValue = "false") boolean async) {
         try {
-            log.info("收到手动全量抓取请求");
-            crawlerService.crawlAllSources();
-            return Result.success("抓取任务已完成");
+            log.info("收到手动全量抓取请求, async={}", async);
+            if (async) {
+                CompletableFuture<Map<String, Object>> future = crawlerService.crawlAllSourcesAsync();
+                future.thenAccept(result -> {
+                    log.info("异步全量抓取任务完成: cost={}ms, success={}, failed={}",
+                            result.get("totalCostTimeMs"),
+                            result.get("successSources"),
+                            result.get("failedSources"));
+                }).exceptionally(ex -> {
+                    log.error("异步全量抓取任务异常", ex);
+                    return null;
+                });
+                return Result.success("异步抓取任务已提交，后台执行中");
+            } else {
+                crawlerService.crawlAllSources();
+                return Result.success("抓取任务已完成");
+            }
         } catch (Exception e) {
             log.error("全量抓取失败", e);
             return Result.error("抓取失败: " + e.getMessage());
@@ -31,11 +47,28 @@ public class CrawlerController {
     }
 
     @PostMapping("/crawl/{source}")
-    public Result<CrawlRecord> crawlSource(@PathVariable String source) {
+    public Result<Object> crawlSource(@PathVariable String source,
+                                       @RequestParam(defaultValue = "false") boolean async) {
         try {
-            log.info("收到手动抓取请求: 数据源={}", source);
-            CrawlRecord record = crawlerService.crawlSourceByName(source);
-            return Result.success(record);
+            log.info("收到手动抓取请求: 数据源={}, async={}", source, async);
+            if (async) {
+                CompletableFuture<CrawlRecord> future = crawlerService.crawlSourceAsyncByName(source);
+                future.thenAccept(record -> {
+                    log.info("异步抓取任务完成: 数据源={}, 状态={}, 耗时={}ms",
+                            source, record.getStatus(), record.getCostTimeMs());
+                }).exceptionally(ex -> {
+                    log.error("异步抓取任务异常: 数据源={}", source, ex);
+                    return null;
+                });
+                Map<String, Object> resp = new java.util.HashMap<>();
+                resp.put("message", "异步抓取任务已提交");
+                resp.put("source", source);
+                resp.put("async", true);
+                return Result.success(resp);
+            } else {
+                CrawlRecord record = crawlerService.crawlSourceByName(source);
+                return Result.success(record);
+            }
         } catch (Exception e) {
             log.error("抓取数据源 [{}] 失败", source, e);
             return Result.error("抓取失败: " + e.getMessage());

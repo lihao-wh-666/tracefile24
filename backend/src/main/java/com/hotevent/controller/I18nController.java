@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/i18n")
@@ -35,7 +36,9 @@ public class I18nController {
     }
 
     @PostMapping("/translate")
-    public Result<Map<String, Object>> translate(@RequestBody Map<String, String> request) {
+    public Result<Map<String, Object>> translate(
+            @RequestBody Map<String, String> request,
+            @RequestParam(defaultValue = "false") boolean async) {
         String text = request.get("text");
         String sourceLang = request.get("sourceLang");
         String targetLang = request.get("targetLang");
@@ -50,20 +53,41 @@ public class I18nController {
             targetLang = i18nProperties.getDefaultLocale();
         }
 
-        String translated = translationService.translate(text, sourceLang, targetLang);
+        final String srcLang = sourceLang;
+        final String tgtLang = targetLang;
+
+        if (async) {
+            CompletableFuture<String> translateFuture =
+                    translationService.translateAsync(text, srcLang, tgtLang);
+            String translated = translateFuture.join();
+
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("originalText", text);
+            result.put("translatedText", translated);
+            result.put("sourceLang", srcLang);
+            result.put("targetLang", tgtLang);
+            result.put("detectedSourceLang", nlpService.detectLanguage(text));
+            result.put("isAsync", true);
+
+            return Result.success(result);
+        }
+
+        String translated = translationService.translate(text, srcLang, tgtLang);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("originalText", text);
         result.put("translatedText", translated);
-        result.put("sourceLang", sourceLang);
-        result.put("targetLang", targetLang);
+        result.put("sourceLang", srcLang);
+        result.put("targetLang", tgtLang);
         result.put("detectedSourceLang", nlpService.detectLanguage(text));
 
         return Result.success(result);
     }
 
     @PostMapping("/translate-batch")
-    public Result<Map<String, String>> translateBatch(@RequestBody Map<String, Object> request) {
+    public Result<Map<String, String>> translateBatch(
+            @RequestBody Map<String, Object> request,
+            @RequestParam(defaultValue = "false") boolean async) {
         @SuppressWarnings("unchecked")
         Map<String, String> texts = (Map<String, String>) request.get("texts");
         String sourceLang = (String) request.get("sourceLang");
@@ -74,6 +98,12 @@ public class I18nController {
         }
         if (sourceLang == null) sourceLang = "zh-CN";
         if (targetLang == null) targetLang = i18nProperties.getDefaultLocale();
+
+        if (async) {
+            CompletableFuture<Map<String, String>> future =
+                    translationService.translateBatchAsync(texts, sourceLang, targetLang);
+            return Result.success(future.join());
+        }
 
         Map<String, String> result = translationService.translateBatch(texts, sourceLang, targetLang);
         return Result.success(result);
@@ -99,7 +129,9 @@ public class I18nController {
     }
 
     @PostMapping("/segment")
-    public Result<Map<String, Object>> segment(@RequestBody Map<String, String> request) {
+    public Result<Map<String, Object>> segment(
+            @RequestBody Map<String, String> request,
+            @RequestParam(defaultValue = "false") boolean async) {
         String text = request.get("text");
         String language = request.get("language");
 
@@ -110,12 +142,21 @@ public class I18nController {
             language = nlpService.detectLanguage(text);
         }
 
-        Map<String, Object> analysis = nlpService.analyzeText(text, language);
+        final String finalLanguage = language;
+        if (async) {
+            CompletableFuture<Map<String, Object>> future =
+                    nlpService.analyzeTextAsync(text, finalLanguage);
+            return Result.success(future.join());
+        }
+
+        Map<String, Object> analysis = nlpService.analyzeText(text, finalLanguage);
         return Result.success(analysis);
     }
 
     @PostMapping("/extract-keywords")
-    public Result<Map<String, Object>> extractKeywords(@RequestBody Map<String, Object> request) {
+    public Result<Map<String, Object>> extractKeywords(
+            @RequestBody Map<String, Object> request,
+            @RequestParam(defaultValue = "false") boolean async) {
         String text = (String) request.get("text");
         String language = (String) request.get("language");
         Integer count = (Integer) request.get("count");
@@ -130,24 +171,63 @@ public class I18nController {
             count = 10;
         }
 
-        List<String> keywords = nlpService.extractKeywords(text, language, count);
-        Map<String, Double> keywordScores = nlpService.extractKeywordsWithScore(text, language, count);
+        final String finalLanguage = language;
+        final int finalCount = count;
+
+        if (async) {
+            CompletableFuture<List<String>> keywordsFuture =
+                    nlpService.extractKeywordsAsync(text, finalLanguage, finalCount);
+            CompletableFuture<Map<String, Double>> keywordScoresFuture =
+                    nlpService.extractKeywordsWithScoreAsync(text, finalLanguage, finalCount);
+
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("keywords", keywordsFuture.join());
+            result.put("keywordScores", keywordScoresFuture.join());
+            result.put("language", finalLanguage);
+            result.put("isAsync", true);
+
+            return Result.success(result);
+        }
+
+        List<String> keywords = nlpService.extractKeywords(text, finalLanguage, finalCount);
+        Map<String, Double> keywordScores = nlpService.extractKeywordsWithScore(text, finalLanguage, finalCount);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("keywords", keywords);
         result.put("keywordScores", keywordScores);
-        result.put("language", language);
+        result.put("language", finalLanguage);
 
         return Result.success(result);
     }
 
     @PostMapping("/convert")
-    public Result<Map<String, Object>> convertChinese(@RequestBody Map<String, String> request) {
+    public Result<Map<String, Object>> convertChinese(
+            @RequestBody Map<String, String> request,
+            @RequestParam(defaultValue = "false") boolean async) {
         String text = request.get("text");
         String direction = request.get("direction");
 
         if (text == null || text.isEmpty()) {
             return Result.error("转换文本不能为空");
+        }
+
+        if (async) {
+            CompletableFuture<String> convertFuture;
+            if ("toTraditional".equals(direction)) {
+                convertFuture = nlpService.convertToTraditionalAsync(text);
+            } else if ("toSimplified".equals(direction)) {
+                convertFuture = nlpService.convertToSimplifiedAsync(text);
+            } else {
+                return Result.error("direction参数必须为 toTraditional 或 toSimplified");
+            }
+
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("originalText", text);
+            result.put("convertedText", convertFuture.join());
+            result.put("direction", direction);
+            result.put("isAsync", true);
+
+            return Result.success(result);
         }
 
         String converted;

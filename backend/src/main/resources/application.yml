@@ -116,6 +116,25 @@ hot-event:
       language-detection:
         enabled: true
         confidence-threshold: 0.8
+  async:
+    thread-pool:
+      cpu-intensive:
+        description: "CPU密集型任务线程池 - 用于分词、关键词提取、复杂计算等"
+        core-pool-size: "${CPU_INTENSIVE_CORE:}"
+        max-pool-size: "${CPU_INTENSIVE_MAX:}"
+        queue-capacity: 100
+        keep-alive-seconds: 60
+        rejection-policy: CallerRunsPolicy
+      io-intensive:
+        description: "IO密集型任务线程池 - 用于网络爬虫、翻译API调用、数据库操作等"
+        core-pool-size: "${IO_INTENSIVE_CORE:}"
+        max-pool-size: "${IO_INTENSIVE_MAX:}"
+        queue-capacity: 500
+        keep-alive-seconds: 120
+        rejection-policy: CallerRunsPolicy
+    monitor:
+      enabled: true
+      metrics-endpoint: "/async-monitor"
   multi-platform:
     enabled: true
     auto-start: true
