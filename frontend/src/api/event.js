@@ -12,6 +12,22 @@ function downloadFile(url, params, filename) {
       'Authorization': token ? 'Bearer ' + token : ''
     }
   }).then(response => {
+    const blob = response.data
+    if (blob.type && blob.type.includes('application/json')) {
+      return blob.text().then(text => {
+        const json = JSON.parse(text)
+        if (json.code === 401) {
+          localStorage.removeItem('hot_event_token')
+          localStorage.removeItem('hot_event_user')
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login'
+          }
+          return Promise.reject(new Error('未登录或token已过期'))
+        }
+        return Promise.reject(new Error(json.message || '导出失败'))
+      })
+    }
+
     const disposition = response.headers['content-disposition']
     let finalFilename = filename
     if (disposition) {
@@ -20,13 +36,23 @@ function downloadFile(url, params, filename) {
         finalFilename = decodeURIComponent(utf8Match[1])
       }
     }
-    const blob = new Blob([response.data])
+    const downloadBlob = new Blob([blob])
     const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
+    link.href = URL.createObjectURL(downloadBlob)
     link.download = finalFilename
     link.click()
     URL.revokeObjectURL(link.href)
     return true
+  }).catch(error => {
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem('hot_event_token')
+      localStorage.removeItem('hot_event_user')
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
+      return Promise.reject(new Error('未登录或token已过期'))
+    }
+    return Promise.reject(error)
   })
 }
 
@@ -101,4 +127,3 @@ export function exportStatisticsExcel() {
 export function exportStatisticsCsv() {
   return downloadFile('/events/statistics/export/csv', {}, 'statistics.csv')
 }
-
