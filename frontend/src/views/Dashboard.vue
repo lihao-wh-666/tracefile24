@@ -2,10 +2,31 @@
   <div class="dashboard-page">
     <div class="page-header">
       <h2 class="page-title">{{ $t('dashboard.page') }}</h2>
-      <el-button type="primary" @click="fetchStatistics">
-        <el-icon><Refresh /></el-icon>
-        <span>{{ $t('common.search') }}</span>
-      </el-button>
+      <div class="header-actions">
+        <el-button type="primary" @click="fetchStatistics">
+          <el-icon><Refresh /></el-icon>
+          <span>{{ $t('common.search') }}</span>
+        </el-button>
+        <el-dropdown trigger="click" @command="handleExport">
+          <el-button type="success">
+            <el-icon><Download /></el-icon>
+            <span>{{ $t('common.export') }}</span>
+            <el-icon><ArrowDown /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="excel">
+                <el-icon><Document /></el-icon>
+                {{ $t('common.exportExcel') }}
+              </el-dropdown-item>
+              <el-dropdown-item command="csv">
+                <el-icon><Tickets /></el-icon>
+                {{ $t('common.exportCsv') }}
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </div>
     </div>
 
     <el-row :gutter="20" class="mb-20">
@@ -86,10 +107,11 @@ import { ref, onMounted, nextTick, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import * as echarts from 'echarts'
-import { getEventStatistics } from '@/api/event'
+import { getEventStatistics, exportStatisticsExcel, exportStatisticsCsv } from '@/api/event'
 import { useCrawlerConfigStore } from '@/stores/crawlerConfig'
 import { usePlatformConfigStore } from '@/stores/platformConfig'
 import { getPlatformName, PLATFORM_COLORS } from '@/utils/platform'
+import message from '@/utils/message'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -163,6 +185,21 @@ const formatHotValue = (value) => {
 
 const goToDetail = (id) => {
   router.push(`/events/${id}`)
+}
+
+const handleExport = async (command) => {
+  try {
+    if (command === 'excel') {
+      await exportStatisticsExcel()
+      message.success(t('common.exportSuccess'))
+    } else if (command === 'csv') {
+      await exportStatisticsCsv()
+      message.success(t('common.exportSuccess'))
+    }
+  } catch (error) {
+    console.error('导出失败', error)
+    message.error(t('common.exportFailed'))
+  }
 }
 
 const renderSourceChart = () => {
@@ -285,6 +322,17 @@ onMounted(async () => {
 
 <style scoped lang="scss">
 .dashboard-page {
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .header-actions {
+      display: flex;
+      gap: 12px;
+    }
+  }
+
   .stat-unit {
     font-size: 14px;
     font-weight: 400;

@@ -35,7 +35,12 @@ export default {
     crawlTime: '抓取時間',
     uncategorized: '未分類',
     rising: '飆升',
-    language: '語言'
+    language: '語言',
+    export: '匯出',
+    exportExcel: '匯出 Excel',
+    exportCsv: '匯出 CSV',
+    exportSuccess: '匯出成功',
+    exportFailed: '匯出失敗'
   },
   events: {
     page: '熱點事件',

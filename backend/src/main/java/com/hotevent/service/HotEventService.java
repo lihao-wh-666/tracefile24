@@ -423,6 +423,18 @@ public class HotEventService {
         return eventTranslationRepository.findByEventId(eventId);
     }
 
+    public List<HotEvent> getAllHotEventsForExport(String source, String keyword) {
+        Sort sort = Sort.by(Sort.Direction.DESC, "hotValue");
+
+        if (keyword != null && !keyword.isEmpty()) {
+            return hotEventRepository.findByTitleContainingAndDeletedFalse(keyword, sort);
+        } else if (source != null && !source.isEmpty()) {
+            return hotEventRepository.findBySourceAndDeletedFalse(source, sort);
+        } else {
+            return hotEventRepository.findByDeletedFalse(sort);
+        }
+    }
+
     public EventTranslation updateTranslation(Long eventId, String language, String title, String description, String category) {
         Optional<EventTranslation> existing = eventTranslationRepository.findByEventIdAndLanguage(eventId, language);
         EventTranslation translation;

@@ -2,6 +2,27 @@
   <div class="events-page">
     <div class="page-header">
       <h2 class="page-title">{{ $t('events.page') }}</h2>
+      <div class="header-actions">
+        <el-dropdown trigger="click" @command="handleExport">
+          <el-button type="success">
+            <el-icon><Download /></el-icon>
+            <span>{{ $t('common.export') }}</span>
+            <el-icon><ArrowDown /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="excel">
+                <el-icon><Document /></el-icon>
+                {{ $t('common.exportExcel') }}
+              </el-dropdown-item>
+              <el-dropdown-item command="csv">
+                <el-icon><Tickets /></el-icon>
+                {{ $t('common.exportCsv') }}
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </div>
     </div>
 
     <div class="card mb-20">
@@ -114,7 +135,7 @@ import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessageBox } from 'element-plus'
-import { getHotEventList, deleteHotEvent } from '@/api/event'
+import { getHotEventList, deleteHotEvent, exportHotEventsExcel, exportHotEventsCsv } from '@/api/event'
 import { usePlatformConfigStore } from '@/stores/platformConfig'
 import { getPlatformName } from '@/utils/platform'
 import dayjs from 'dayjs'
@@ -239,6 +260,29 @@ const handleDelete = async (id) => {
   }
 }
 
+const handleExport = async (command) => {
+  try {
+    const params = {}
+    if (activeSource.value && activeSource.value !== 'all') {
+      params.source = activeSource.value
+    }
+    if (searchKeyword.value) {
+      params.keyword = searchKeyword.value
+    }
+
+    if (command === 'excel') {
+      await exportHotEventsExcel(params)
+      message.success(t('common.exportSuccess'))
+    } else if (command === 'csv') {
+      await exportHotEventsCsv(params)
+      message.success(t('common.exportSuccess'))
+    }
+  } catch (error) {
+    console.error('导出失败', error)
+    message.error(t('common.exportFailed'))
+  }
+}
+
 onMounted(async () => {
   platformConfigStore.loadFromCache()
   await platformConfigStore.fetchPlatformConfigs()
@@ -262,6 +306,17 @@ onUnmounted(() => {
 
 <style scoped lang="scss">
 .events-page {
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .header-actions {
+      display: flex;
+      gap: 12px;
+    }
+  }
+
   .filter-bar {
     display: flex;
     justify-content: space-between;

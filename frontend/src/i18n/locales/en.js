@@ -35,7 +35,12 @@ export default {
     crawlTime: 'Crawl Time',
     uncategorized: 'Uncategorized',
     rising: 'Rising',
-    language: 'Language'
+    language: 'Language',
+    export: 'Export',
+    exportExcel: 'Export Excel',
+    exportCsv: 'Export CSV',
+    exportSuccess: 'Export successful',
+    exportFailed: 'Export failed'
   },
   events: {
     page: 'Hot Events',

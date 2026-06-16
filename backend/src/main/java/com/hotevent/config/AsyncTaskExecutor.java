@@ -109,7 +109,7 @@ public class AsyncTaskExecutor {
         });
     }
 
-    @SafeVarargs
+    @SuppressWarnings("unchecked")
     public final <T> CompletableFuture<List<T>> allOf(List<CompletableFuture<T>> futures) {
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
                 .thenApply(v -> {

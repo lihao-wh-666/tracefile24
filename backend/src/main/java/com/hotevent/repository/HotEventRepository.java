@@ -3,6 +3,7 @@ package com.hotevent.repository;
 import com.hotevent.entity.HotEvent;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -36,6 +37,12 @@ public interface HotEventRepository extends JpaRepository<HotEvent, Long> {
     List<HotEvent> findTopHotEvents(@Param("startTime") LocalDateTime startTime, Pageable pageable);
 
     Page<HotEvent> findByTitleContainingAndDeletedFalse(String keyword, Pageable pageable);
+
+    List<HotEvent> findBySourceAndDeletedFalse(String source, Sort sort);
+
+    List<HotEvent> findByDeletedFalse(Sort sort);
+
+    List<HotEvent> findByTitleContainingAndDeletedFalse(String keyword, Sort sort);
 
     @Query("SELECT h FROM HotEvent h WHERE h.deleted = false AND h.source = :source " +
            "AND h.crawlTime >= :startTime AND h.crawlTime <= :endTime ORDER BY h.hotRank ASC")

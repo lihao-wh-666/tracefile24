@@ -35,7 +35,12 @@ export default {
     crawlTime: '抓取时间',
     uncategorized: '未分类',
     rising: '飙升',
-    language: '语言'
+    language: '语言',
+    export: '导出',
+    exportExcel: '导出 Excel',
+    exportCsv: '导出 CSV',
+    exportSuccess: '导出成功',
+    exportFailed: '导出失败'
   },
   events: {
     page: '热点事件',

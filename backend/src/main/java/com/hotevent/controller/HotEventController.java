@@ -5,9 +5,12 @@ import com.hotevent.common.Result;
 import com.hotevent.entity.EventTranslation;
 import com.hotevent.entity.HotEvent;
 import com.hotevent.service.HotEventService;
+import com.hotevent.util.ExportUtil;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -123,5 +126,35 @@ public class HotEventController {
 
         EventTranslation translation = hotEventService.updateTranslation(id, language, title, description, category);
         return Result.success(translation);
+    }
+
+    @GetMapping("/export/excel")
+    public void exportHotEventsToExcel(
+            @RequestParam(required = false) String source,
+            @RequestParam(required = false) String keyword,
+            HttpServletResponse response) throws IOException {
+        List<HotEvent> events = hotEventService.getAllHotEventsForExport(source, keyword);
+        ExportUtil.exportHotEventsToExcel(events, response);
+    }
+
+    @GetMapping("/export/csv")
+    public void exportHotEventsToCsv(
+            @RequestParam(required = false) String source,
+            @RequestParam(required = false) String keyword,
+            HttpServletResponse response) throws IOException {
+        List<HotEvent> events = hotEventService.getAllHotEventsForExport(source, keyword);
+        ExportUtil.exportHotEventsToCsv(events, response);
+    }
+
+    @GetMapping("/statistics/export/excel")
+    public void exportStatisticsToExcel(HttpServletResponse response) throws IOException {
+        Map<String, Object> statistics = hotEventService.getStatistics();
+        ExportUtil.exportStatisticsToExcel(statistics, response);
+    }
+
+    @GetMapping("/statistics/export/csv")
+    public void exportStatisticsToCsv(HttpServletResponse response) throws IOException {
+        Map<String, Object> statistics = hotEventService.getStatistics();
+        ExportUtil.exportStatisticsToCsv(statistics, response);
     }
 }
