@@ -82,6 +82,13 @@ management:
       show-details: never
 
 hot-event:
+  public-api:
+    enabled: true
+    rate-limit-permits-per-second: 10.0
+    max-page-size: 100
+    default-page-size: 20
+    trending-default-limit: 10
+    trending-max-limit: 50
   i18n:
     default-locale: zh-CN
     supported-locales:
