@@ -157,3 +157,26 @@ CREATE TABLE IF NOT EXISTS event_translation (
     INDEX idx_event_id (event_id),
     INDEX idx_language (language)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='事件翻译表';
+
+-- 热点事件修改日志表
+CREATE TABLE IF NOT EXISTS hot_event_log (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    event_id BIGINT NOT NULL COMMENT '关联事件ID',
+    event_title VARCHAR(500) COMMENT '事件标题',
+    source VARCHAR(50) COMMENT '数据来源',
+    operation_type VARCHAR(20) NOT NULL COMMENT '操作类型(INSERT/UPDATE/DELETE)',
+    field_name VARCHAR(100) COMMENT '修改字段名',
+    old_value TEXT COMMENT '修改前值',
+    new_value TEXT COMMENT '修改后值',
+    operator_id BIGINT COMMENT '操作人ID',
+    operator_name VARCHAR(100) COMMENT '操作人名称',
+    reason VARCHAR(500) COMMENT '修改原因',
+    operation_time DATETIME NOT NULL COMMENT '操作时间',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX idx_event_id (event_id),
+    INDEX idx_source (source),
+    INDEX idx_operation_type (operation_type),
+    INDEX idx_operator_id (operator_id),
+    INDEX idx_operation_time (operation_time),
+    INDEX idx_source_operation_time (source, operation_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='热点事件修改日志表';

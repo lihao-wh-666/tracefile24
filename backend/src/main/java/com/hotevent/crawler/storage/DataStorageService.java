@@ -7,6 +7,7 @@ import com.hotevent.crawler.filter.SensitiveCheckResult;
 import com.hotevent.crawler.filter.SensitiveContentFilter;
 import com.hotevent.entity.HotEvent;
 import com.hotevent.repository.HotEventRepository;
+import com.hotevent.service.HotEventLogService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,9 @@ public class DataStorageService {
     @Autowired
     private SensitiveContentFilter sensitiveContentFilter;
 
+    @Autowired
+    private HotEventLogService hotEventLogService;
+
     private static final int BATCH_SIZE = 50;
 
     @Transactional
@@ -41,6 +45,7 @@ public class DataStorageService {
         AtomicInteger errorCount = new AtomicInteger(0);
 
         List<HotEvent> batchInsert = new ArrayList<>(BATCH_SIZE);
+        List<HotEvent> allInserted = new ArrayList<>();
 
         for (int i = 0; i < items.size(); i++) {
             DataItem item = items.get(i);
@@ -49,6 +54,7 @@ public class DataStorageService {
                 switch (result.status) {
                     case INSERTED:
                         batchInsert.add(result.event);
+                        allInserted.add(result.event);
                         insertCount.incrementAndGet();
                         break;
                     case UPDATED:
@@ -72,6 +78,14 @@ public class DataStorageService {
 
         if (!batchInsert.isEmpty()) {
             hotEventRepository.saveAll(batchInsert);
+        }
+
+        for (HotEvent event : allInserted) {
+            try {
+                hotEventLogService.logInsert(event, "爬虫自动新增");
+            } catch (Exception e) {
+                log.warn("记录新增日志失败[{}]: {}", event.getId(), e.getMessage());
+            }
         }
 
         incrementalCrawlManager.recordStats(source, null, insertCount.get(), updateCount.get());
@@ -109,12 +123,18 @@ public class DataStorageService {
 
         if (existing.isPresent()) {
             event = existing.get();
+            HotEvent oldEvent = cloneHotEvent(event);
             boolean changed = updateHotEventFromDataItem(event, item);
             event.setLastSeenTime(LocalDateTime.now());
             event.setCrawlTime(item.getCrawlTime() != null ? item.getCrawlTime() : LocalDateTime.now());
             event.setIsHot(true);
             if (changed) {
                 hotEventRepository.save(event);
+                try {
+                    hotEventLogService.logUpdate(oldEvent, event, "爬虫自动更新");
+                } catch (Exception e) {
+                    log.warn("记录更新日志失败[{}]: {}", event.getId(), e.getMessage());
+                }
                 return new SaveResult(event, SaveStatus.UPDATED);
             }
             return new SaveResult(event, SaveStatus.SKIPPED);
@@ -252,5 +272,29 @@ public class DataStorageService {
 
     public enum SaveStatus {
         INSERTED, UPDATED, SKIPPED
+    }
+
+    private HotEvent cloneHotEvent(HotEvent event) {
+        if (event == null) return null;
+        HotEvent clone = new HotEvent();
+        clone.setId(event.getId());
+        clone.setTitle(event.getTitle());
+        clone.setDescription(event.getDescription());
+        clone.setSource(event.getSource());
+        clone.setSourceUrl(event.getSourceUrl());
+        clone.setHotValue(event.getHotValue());
+        clone.setHotRank(event.getHotRank());
+        clone.setCategory(event.getCategory());
+        clone.setImageUrl(event.getImageUrl());
+        clone.setIsHot(event.getIsHot());
+        clone.setIsRising(event.getIsRising());
+        clone.setRisingRate(event.getRisingRate());
+        clone.setCrawlTime(event.getCrawlTime());
+        clone.setFirstSeenTime(event.getFirstSeenTime());
+        clone.setLastSeenTime(event.getLastSeenTime());
+        clone.setDeleted(event.getDeleted());
+        clone.setCreateTime(event.getCreateTime());
+        clone.setUpdateTime(event.getUpdateTime());
+        return clone;
     }
 }

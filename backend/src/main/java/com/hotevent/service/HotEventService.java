@@ -42,6 +42,9 @@ public class HotEventService {
     @Autowired
     private AsyncTaskExecutor asyncTaskExecutor;
 
+    @Autowired
+    private HotEventLogService hotEventLogService;
+
     private final Map<String, EventTranslation> translationCacheLocal = new ConcurrentHashMap<>();
 
     public PageResult<HotEvent> getHotEventList(String source, String keyword, int page, int size) {
@@ -451,20 +454,59 @@ public class HotEventService {
     public boolean deleteHotEvent(Long id) {
         HotEvent event = hotEventRepository.findById(id).orElse(null);
         if (event != null) {
+            HotEvent oldEvent = cloneHotEvent(event);
             event.setDeleted(true);
             hotEventRepository.save(event);
+            hotEventLogService.logDelete(oldEvent, "手动删除热点事件");
             return true;
         }
         return false;
     }
 
     public HotEvent saveHotEvent(HotEvent hotEvent) {
+        boolean isNew = hotEvent.getId() == null;
+        HotEvent oldEvent = null;
+        if (!isNew) {
+            oldEvent = hotEventRepository.findById(hotEvent.getId()).orElse(null);
+        }
+
         HotEvent saved = hotEventRepository.save(hotEvent);
+
+        if (isNew) {
+            hotEventLogService.logInsert(saved, "手动新增热点事件");
+        } else if (oldEvent != null) {
+            hotEventLogService.logUpdate(oldEvent, saved, "手动更新热点事件");
+        }
+
         autoTranslateEventAsync(saved).exceptionally(ex -> {
             log.warn("Auto-translation on save failed for event {}: {}", saved.getId(), ex.getMessage());
             return null;
         });
         return saved;
+    }
+
+    private HotEvent cloneHotEvent(HotEvent event) {
+        if (event == null) return null;
+        HotEvent clone = new HotEvent();
+        clone.setId(event.getId());
+        clone.setTitle(event.getTitle());
+        clone.setDescription(event.getDescription());
+        clone.setSource(event.getSource());
+        clone.setSourceUrl(event.getSourceUrl());
+        clone.setHotValue(event.getHotValue());
+        clone.setHotRank(event.getHotRank());
+        clone.setCategory(event.getCategory());
+        clone.setImageUrl(event.getImageUrl());
+        clone.setIsHot(event.getIsHot());
+        clone.setIsRising(event.getIsRising());
+        clone.setRisingRate(event.getRisingRate());
+        clone.setCrawlTime(event.getCrawlTime());
+        clone.setFirstSeenTime(event.getFirstSeenTime());
+        clone.setLastSeenTime(event.getLastSeenTime());
+        clone.setDeleted(event.getDeleted());
+        clone.setCreateTime(event.getCreateTime());
+        clone.setUpdateTime(event.getUpdateTime());
+        return clone;
     }
 
     public List<EventTranslation> getEventTranslations(Long eventId) {
@@ -485,8 +527,16 @@ public class HotEventService {
     public EventTranslation updateTranslation(Long eventId, String language, String title, String description, String category) {
         Optional<EventTranslation> existing = eventTranslationRepository.findByEventIdAndLanguage(eventId, language);
         EventTranslation translation;
+        boolean isNew = !existing.isPresent();
+        String oldTitle = null;
+        String oldDescription = null;
+        String oldCategory = null;
+
         if (existing.isPresent()) {
             translation = existing.get();
+            oldTitle = translation.getTitle();
+            oldDescription = translation.getDescription();
+            oldCategory = translation.getCategory();
             if (title != null) translation.setTitle(title);
             if (description != null) translation.setDescription(description);
             if (category != null) translation.setCategory(category);
@@ -505,6 +555,25 @@ public class HotEventService {
 
         String cacheKey = eventId + "_" + language;
         translationCacheLocal.put(cacheKey, saved);
+
+        try {
+            HotEvent event = hotEventRepository.findById(eventId).orElse(null);
+            if (event != null) {
+                if (isNew) {
+                    hotEventLogService.logFieldChange(event, "translation_" + language, null,
+                            "title=" + title + ",desc=" + description, "手动新增翻译");
+                } else {
+                    if (!Objects.equals(oldTitle, title) || !Objects.equals(oldDescription, description)
+                            || !Objects.equals(oldCategory, category)) {
+                        hotEventLogService.logFieldChange(event, "translation_" + language,
+                                "title=" + oldTitle + ",desc=" + oldDescription,
+                                "title=" + title + ",desc=" + description, "手动更新翻译");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("记录翻译修改日志失败[eventId={},language={}]: {}", eventId, language, e.getMessage());
+        }
 
         return saved;
     }
