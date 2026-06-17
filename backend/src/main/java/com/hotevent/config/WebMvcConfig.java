@@ -27,12 +27,20 @@ public class WebMvcConfig implements WebMvcConfigurer {
     private PublicApiRateLimitInterceptor publicApiRateLimitInterceptor;
 
     @Autowired
+    private PublicApiAuthInterceptor publicApiAuthInterceptor;
+
+    @Autowired
     private ObjectMapper objectMapper;
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(publicApiAuthInterceptor)
+                .addPathPatterns("/public/**")
+                .order(0);
+
         registry.addInterceptor(publicApiRateLimitInterceptor)
-                .addPathPatterns("/public/**");
+                .addPathPatterns("/public/**")
+                .order(1);
     }
 
     @Override

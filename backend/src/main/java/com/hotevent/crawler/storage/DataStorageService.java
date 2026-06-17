@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
@@ -39,17 +40,35 @@ public class DataStorageService {
     public int saveBatch(List<DataItem> items, String source) {
         if (items == null || items.isEmpty()) return 0;
 
+        List<DataItem> deduplicatedItems = deduplicateItems(items, source);
+        int duplicateCount = items.size() - deduplicatedItems.size();
+        if (duplicateCount > 0) {
+            log.info("[存储][{}] 批次内去重: 原始{}条, 去重后{}条, 移除{}条重复",
+                    source, items.size(), deduplicatedItems.size(), duplicateCount);
+        }
+
         AtomicInteger insertCount = new AtomicInteger(0);
         AtomicInteger updateCount = new AtomicInteger(0);
-        AtomicInteger skipCount = new AtomicInteger(0);
+        AtomicInteger skipCount = new AtomicInteger(duplicateCount);
         AtomicInteger errorCount = new AtomicInteger(0);
+
+        Set<String> processedTitles = ConcurrentHashMap.newKeySet();
 
         List<HotEvent> batchInsert = new ArrayList<>(BATCH_SIZE);
         List<HotEvent> allInserted = new ArrayList<>();
 
-        for (int i = 0; i < items.size(); i++) {
-            DataItem item = items.get(i);
+        for (int i = 0; i < deduplicatedItems.size(); i++) {
+            DataItem item = deduplicatedItems.get(i);
             try {
+                String titleKey = item.getTitle() != null ? item.getTitle().trim() : "";
+                if (!titleKey.isEmpty() && processedTitles.contains(titleKey)) {
+                    skipCount.incrementAndGet();
+                    continue;
+                }
+                if (!titleKey.isEmpty()) {
+                    processedTitles.add(titleKey);
+                }
+
                 SaveResult result = saveOrUpdate(item, source);
                 switch (result.status) {
                     case INSERTED:
@@ -259,6 +278,56 @@ public class DataStorageService {
             case "weibo": return "微博";
             default: return source;
         }
+    }
+
+    private List<DataItem> deduplicateItems(List<DataItem> items, String source) {
+        if (items == null || items.size() <= 1) return items;
+
+        Map<String, DataItem> titleMap = new LinkedHashMap<>();
+        Map<String, DataItem> urlMap = new HashMap<>();
+
+        for (DataItem item : items) {
+            if (item == null) continue;
+
+            String title = item.getTitle() != null ? item.getTitle().trim() : "";
+            String url = item.getUrl() != null ? item.getUrl().trim() : "";
+
+            if (!title.isEmpty()) {
+                DataItem existing = titleMap.get(title);
+                if (existing != null) {
+                    if (shouldReplace(existing, item)) {
+                        titleMap.put(title, item);
+                        if (!url.isEmpty()) {
+                            urlMap.put(url, item);
+                        }
+                    }
+                    continue;
+                }
+                titleMap.put(title, item);
+            }
+
+            if (!url.isEmpty()) {
+                if (urlMap.containsKey(url)) continue;
+                urlMap.put(url, item);
+            }
+        }
+
+        return new ArrayList<>(titleMap.values());
+    }
+
+    private boolean shouldReplace(DataItem existing, DataItem newItem) {
+        if (newItem == null) return false;
+        if (existing == null) return true;
+
+        long existingHot = existing.getHotValue() != null ? existing.getHotValue() : 0L;
+        long newHot = newItem.getHotValue() != null ? newItem.getHotValue() : 0L;
+        if (newHot > existingHot) return true;
+
+        String existingDesc = existing.getContent() != null ? existing.getContent() :
+                (existing.getSummary() != null ? existing.getSummary() : "");
+        String newDesc = newItem.getContent() != null ? newItem.getContent() :
+                (newItem.getSummary() != null ? newItem.getSummary() : "");
+        return newDesc.length() > existingDesc.length();
     }
 
     public static class SaveResult {
