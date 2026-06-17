@@ -43,13 +43,17 @@ export default {
     exportFailed: '匯出失敗',
     advancedFilter: '進階篩選',
     selectCategory: '選擇分類',
+    selectSource: '選擇來源',
+    selectAll: '全部',
     timeRange: '時間範圍',
     startTime: '開始時間',
     endTime: '結束時間',
-    reset: '重置'
+    reset: '重置',
+    refresh: '重新整理'
   },
   events: {
     page: '熱點事件',
+    detail: '事件詳情',
     searchPlaceholder: '搜尋熱點事件...',
     deleteConfirm: '確定要刪除這條熱點事件嗎？',
     deleteSuccess: '刪除成功',

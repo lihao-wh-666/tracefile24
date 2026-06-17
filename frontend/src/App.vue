@@ -32,6 +32,10 @@
                 <el-icon><List /></el-icon>
                 <span>{{ $t('nav.events') }}</span>
               </el-menu-item>
+              <el-menu-item index="/event-logs">
+                <el-icon><Notebook /></el-icon>
+                <span>{{ $t('nav.eventLogs') }}</span>
+              </el-menu-item>
               <el-menu-item index="/crawl-records">
                 <el-icon><Refresh /></el-icon>
                 <span>{{ $t('nav.crawlRecords') }}</span>
@@ -106,7 +110,7 @@ import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessageBox } from 'element-plus'
-import { UserFilled, ArrowDown, SwitchButton, Setting } from '@element-plus/icons-vue'
+import { UserFilled, ArrowDown, SwitchButton, Setting, Notebook } from '@element-plus/icons-vue'
 import { executeAllCrawl } from '@/api/multiCrawler'
 import { getSessionTimeoutConfig } from '@/api/sysConfig'
 import { useUserStore } from '@/stores/user'

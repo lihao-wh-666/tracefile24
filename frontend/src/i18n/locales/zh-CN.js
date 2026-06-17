@@ -7,6 +7,7 @@ export default {
   nav: {
     dashboard: '数据概览',
     events: '热点事件',
+    eventLogs: '修改日志',
     crawlRecords: '抓取记录',
     users: '用户管理',
     sysConfig: '系统管理'
@@ -43,13 +44,17 @@ export default {
     exportFailed: '导出失败',
     advancedFilter: '高级筛选',
     selectCategory: '选择分类',
+    selectSource: '选择来源',
+    selectAll: '全部',
     timeRange: '时间范围',
     startTime: '开始时间',
     endTime: '结束时间',
-    reset: '重置'
+    reset: '重置',
+    refresh: '刷新'
   },
   events: {
     page: '热点事件',
+    detail: '事件详情',
     searchPlaceholder: '搜索热点事件...',
     deleteConfirm: '确定要删除这条热点事件吗？',
     deleteSuccess: '删除成功',
@@ -154,5 +159,24 @@ export default {
     sessionConfig: '会话设置',
     messageConfig: '消息设置',
     i18nConfig: '多语言设置'
+  },
+  eventLogs: {
+    page: '修改日志',
+    operationTime: '操作时间',
+    operationType: '操作类型',
+    typeInsert: '新增',
+    typeUpdate: '更新',
+    typeDelete: '删除',
+    eventTitle: '事件标题',
+    fieldName: '修改字段',
+    valueChange: '值变更',
+    oldValue: '修改前',
+    newValue: '修改后',
+    operator: '操作人',
+    operatorPlaceholder: '搜索操作人...',
+    reason: '修改原因',
+    logDetail: '日志详情',
+    fetchFailed: '获取日志列表失败',
+    changeHistory: '变更历史'
   }
 }

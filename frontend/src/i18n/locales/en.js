@@ -43,10 +43,13 @@ export default {
     exportFailed: 'Export failed',
     advancedFilter: 'Advanced Filter',
     selectCategory: 'Select Category',
+    selectSource: 'Select Source',
+    selectAll: 'All',
     timeRange: 'Time Range',
     startTime: 'Start Time',
     endTime: 'End Time',
-    reset: 'Reset'
+    reset: 'Reset',
+    refresh: 'Refresh'
   },
   events: {
     page: 'Hot Events',
@@ -154,5 +157,24 @@ export default {
     sessionConfig: 'Session Settings',
     messageConfig: 'Message Settings',
     i18nConfig: 'Language Settings'
+  },
+  eventLogs: {
+    page: 'Change Logs',
+    operationTime: 'Operation Time',
+    operationType: 'Operation Type',
+    typeInsert: 'Insert',
+    typeUpdate: 'Update',
+    typeDelete: 'Delete',
+    eventTitle: 'Event Title',
+    fieldName: 'Field',
+    valueChange: 'Value Change',
+    oldValue: 'Old Value',
+    newValue: 'New Value',
+    operator: 'Operator',
+    operatorPlaceholder: 'Search operator...',
+    reason: 'Reason',
+    logDetail: 'Log Detail',
+    fetchFailed: 'Failed to fetch logs',
+    changeHistory: 'Change History'
   }
 }

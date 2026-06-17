@@ -27,6 +27,12 @@ const routes = [
     meta: { title: '事件详情' }
   },
   {
+    path: '/event-logs',
+    name: 'EventLogs',
+    component: () => import('@/views/EventLogs.vue'),
+    meta: { title: '修改日志' }
+  },
+  {
     path: '/crawl-records',
     name: 'CrawlRecords',
     component: () => import('@/views/CrawlRecords.vue'),
