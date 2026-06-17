@@ -83,6 +83,13 @@ export function getEventSources() {
   })
 }
 
+export function getEventCategories() {
+  return request({
+    url: '/events/categories',
+    method: 'get'
+  })
+}
+
 export function getEventStatistics() {
   return request({
     url: '/events/statistics',

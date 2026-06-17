@@ -99,12 +99,10 @@ public class DataStorageService {
         String normalizedSource = source != null ? source : item.getPlatform();
         String normalizedTitle = item.getTitle().trim();
 
-        if (item.getSource() == null || item.getSource().isEmpty()) {
-            item.setSource(normalizedSource);
-        }
+        item.setSource(normalizedSource);
 
         Optional<HotEvent> existing = hotEventRepository.findBySourceAndTitleAndDeletedFalse(
-                item.getSource(), normalizedTitle);
+                normalizedSource, normalizedTitle);
 
         HotEvent event;
         boolean isNew = false;

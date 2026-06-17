@@ -8,9 +8,11 @@ import com.hotevent.service.HotEventService;
 import com.hotevent.util.ExportUtil;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -26,6 +28,9 @@ public class HotEventController {
     public Result<?> getHotEventList(
             @RequestParam(required = false) String source,
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String lang,
@@ -34,15 +39,15 @@ public class HotEventController {
         if (lang != null && !lang.isEmpty() && !"zh-CN".equals(lang)) {
             if (async) {
                 CompletableFuture<PageResult<Map<String, Object>>> future =
-                        hotEventService.getHotEventListLocalizedAsync(source, keyword, page, size, lang);
+                        hotEventService.getHotEventListLocalizedAsync(source, keyword, category, startTime, endTime, page, size, lang);
                 PageResult<Map<String, Object>> result = future.join();
                 return Result.success(result);
             }
-            PageResult<Map<String, Object>> result = hotEventService.getHotEventListLocalized(source, keyword, page, size, lang);
+            PageResult<Map<String, Object>> result = hotEventService.getHotEventListLocalized(source, keyword, category, startTime, endTime, page, size, lang);
             return Result.success(result);
         }
 
-        PageResult<HotEvent> result = hotEventService.getHotEventList(source, keyword, page, size);
+        PageResult<HotEvent> result = hotEventService.getHotEventList(source, keyword, category, startTime, endTime, page, size);
         return Result.success(result);
     }
 
@@ -80,6 +85,12 @@ public class HotEventController {
     public Result<List<String>> getAvailableSources() {
         List<String> sources = hotEventService.getAvailableSources();
         return Result.success(sources);
+    }
+
+    @GetMapping("/categories")
+    public Result<List<String>> getAvailableCategories() {
+        List<String> categories = hotEventService.getAvailableCategories();
+        return Result.success(categories);
     }
 
     @GetMapping("/statistics")
@@ -132,8 +143,11 @@ public class HotEventController {
     public void exportHotEventsToExcel(
             @RequestParam(required = false) String source,
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime,
             HttpServletResponse response) throws IOException {
-        List<HotEvent> events = hotEventService.getAllHotEventsForExport(source, keyword);
+        List<HotEvent> events = hotEventService.getAllHotEventsForExport(source, keyword, category, startTime, endTime);
         ExportUtil.exportHotEventsToExcel(events, response);
     }
 
@@ -141,8 +155,11 @@ public class HotEventController {
     public void exportHotEventsToCsv(
             @RequestParam(required = false) String source,
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime,
             HttpServletResponse response) throws IOException {
-        List<HotEvent> events = hotEventService.getAllHotEventsForExport(source, keyword);
+        List<HotEvent> events = hotEventService.getAllHotEventsForExport(source, keyword, category, startTime, endTime);
         ExportUtil.exportHotEventsToCsv(events, response);
     }
 

@@ -8,12 +8,14 @@ import com.hotevent.i18n.I18nProperties;
 import com.hotevent.i18n.TranslationService;
 import com.hotevent.repository.EventTranslationRepository;
 import com.hotevent.repository.HotEventRepository;
+import jakarta.persistence.criteria.Predicate;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -43,16 +45,15 @@ public class HotEventService {
     private final Map<String, EventTranslation> translationCacheLocal = new ConcurrentHashMap<>();
 
     public PageResult<HotEvent> getHotEventList(String source, String keyword, int page, int size) {
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "hotValue"));
-        Page<HotEvent> hotEventPage;
+        return getHotEventList(source, keyword, null, null, null, page, size);
+    }
 
-        if (keyword != null && !keyword.isEmpty()) {
-            hotEventPage = hotEventRepository.findByTitleContainingAndDeletedFalse(keyword, pageable);
-        } else if (source != null && !source.isEmpty()) {
-            hotEventPage = hotEventRepository.findBySourceAndDeletedFalse(source, pageable);
-        } else {
-            hotEventPage = hotEventRepository.findByDeletedFalse(pageable);
-        }
+    public PageResult<HotEvent> getHotEventList(String source, String keyword, String category,
+                                                LocalDateTime startTime, LocalDateTime endTime,
+                                                int page, int size) {
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "hotValue"));
+        Specification<HotEvent> spec = buildSearchSpecification(source, keyword, category, startTime, endTime);
+        Page<HotEvent> hotEventPage = hotEventRepository.findAll(spec, pageable);
 
         return PageResult.of(
                 hotEventPage.getContent(),
@@ -62,13 +63,56 @@ public class HotEventService {
         );
     }
 
+    private Specification<HotEvent> buildSearchSpecification(String source, String keyword, String category,
+                                                             LocalDateTime startTime, LocalDateTime endTime) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            predicates.add(cb.equal(root.get("deleted"), false));
+
+            if (source != null && !source.isEmpty()) {
+                predicates.add(cb.equal(root.get("source"), source));
+            }
+
+            if (keyword != null && !keyword.isEmpty()) {
+                predicates.add(cb.like(root.get("title"), "%" + keyword + "%"));
+            }
+
+            if (category != null && !category.isEmpty()) {
+                predicates.add(cb.equal(root.get("category"), category));
+            }
+
+            if (startTime != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("crawlTime"), startTime));
+            }
+
+            if (endTime != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("crawlTime"), endTime));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
     public PageResult<Map<String, Object>> getHotEventListLocalized(String source, String keyword, int page, int size, String lang) {
-        return getHotEventListLocalizedAsync(source, keyword, page, size, lang).join();
+        return getHotEventListLocalizedAsync(source, keyword, null, null, null, page, size, lang).join();
+    }
+
+    public PageResult<Map<String, Object>> getHotEventListLocalized(String source, String keyword, String category,
+                                                                    LocalDateTime startTime, LocalDateTime endTime,
+                                                                    int page, int size, String lang) {
+        return getHotEventListLocalizedAsync(source, keyword, category, startTime, endTime, page, size, lang).join();
     }
 
     public CompletableFuture<PageResult<Map<String, Object>>> getHotEventListLocalizedAsync(
             String source, String keyword, int page, int size, String lang) {
-        PageResult<HotEvent> original = getHotEventList(source, keyword, page, size);
+        return getHotEventListLocalizedAsync(source, keyword, null, null, null, page, size, lang);
+    }
+
+    public CompletableFuture<PageResult<Map<String, Object>>> getHotEventListLocalizedAsync(
+            String source, String keyword, String category, LocalDateTime startTime, LocalDateTime endTime,
+            int page, int size, String lang) {
+        PageResult<HotEvent> original = getHotEventList(source, keyword, category, startTime, endTime, page, size);
         List<HotEvent> events = original.getRecords();
 
         if (lang == null || lang.isEmpty() || "zh-CN".equals(lang) || events.isEmpty()) {
@@ -314,6 +358,10 @@ public class HotEventService {
         return hotEventRepository.findDistinctSources();
     }
 
+    public List<String> getAvailableCategories() {
+        return hotEventRepository.findDistinctCategories();
+    }
+
     public Map<String, Object> getStatistics() {
         Map<String, Object> statistics = new LinkedHashMap<>();
 
@@ -424,15 +472,14 @@ public class HotEventService {
     }
 
     public List<HotEvent> getAllHotEventsForExport(String source, String keyword) {
-        Sort sort = Sort.by(Sort.Direction.DESC, "hotValue");
+        return getAllHotEventsForExport(source, keyword, null, null, null);
+    }
 
-        if (keyword != null && !keyword.isEmpty()) {
-            return hotEventRepository.findByTitleContainingAndDeletedFalse(keyword, sort);
-        } else if (source != null && !source.isEmpty()) {
-            return hotEventRepository.findBySourceAndDeletedFalse(source, sort);
-        } else {
-            return hotEventRepository.findByDeletedFalse(sort);
-        }
+    public List<HotEvent> getAllHotEventsForExport(String source, String keyword, String category,
+                                                   LocalDateTime startTime, LocalDateTime endTime) {
+        Sort sort = Sort.by(Sort.Direction.DESC, "hotValue");
+        Specification<HotEvent> spec = buildSearchSpecification(source, keyword, category, startTime, endTime);
+        return hotEventRepository.findAll(spec, sort);
     }
 
     public EventTranslation updateTranslation(Long eventId, String language, String title, String description, String category) {

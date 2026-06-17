@@ -40,7 +40,13 @@ export default {
     exportExcel: 'Export Excel',
     exportCsv: 'Export CSV',
     exportSuccess: 'Export successful',
-    exportFailed: 'Export failed'
+    exportFailed: 'Export failed',
+    advancedFilter: 'Advanced Filter',
+    selectCategory: 'Select Category',
+    timeRange: 'Time Range',
+    startTime: 'Start Time',
+    endTime: 'End Time',
+    reset: 'Reset'
   },
   events: {
     page: 'Hot Events',

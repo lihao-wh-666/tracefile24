@@ -40,7 +40,13 @@ export default {
     exportExcel: '导出 Excel',
     exportCsv: '导出 CSV',
     exportSuccess: '导出成功',
-    exportFailed: '导出失败'
+    exportFailed: '导出失败',
+    advancedFilter: '高级筛选',
+    selectCategory: '选择分类',
+    timeRange: '时间范围',
+    startTime: '开始时间',
+    endTime: '结束时间',
+    reset: '重置'
   },
   events: {
     page: '热点事件',

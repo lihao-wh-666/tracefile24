@@ -52,8 +52,57 @@
               <el-icon><Search /></el-icon>
               <span>{{ $t('common.search') }}</span>
             </el-button>
+          <el-button @click="showAdvancedFilter = !showAdvancedFilter">
+            <el-icon><Filter /></el-icon>
+            <span>{{ $t('common.advancedFilter') }}</span>
+          </el-button>
         </div>
       </div>
+
+      <el-collapse-transition>
+        <div v-show="showAdvancedFilter" class="advanced-filter">
+          <div class="filter-row">
+            <div class="filter-item">
+              <label class="filter-label">{{ $t('common.category') }}</label>
+              <el-select
+                v-model="searchCategory"
+                :placeholder="$t('common.selectCategory')"
+                clearable
+                class="filter-select"
+              >
+                <el-option
+                  v-for="cat in categoryList"
+                  :key="cat"
+                  :label="cat"
+                  :value="cat"
+                />
+              </el-select>
+            </div>
+            <div class="filter-item">
+              <label class="filter-label">{{ $t('common.timeRange') }}</label>
+              <el-date-picker
+                v-model="dateRange"
+                type="datetimerange"
+                range-separator="-"
+                :start-placeholder="$t('common.startTime')"
+                :end-placeholder="$t('common.endTime')"
+                value-format="YYYY-MM-DDTHH:mm:ss"
+                class="filter-date"
+              />
+            </div>
+            <div class="filter-item filter-actions">
+              <el-button type="primary" @click="handleSearch">
+                <el-icon><Search /></el-icon>
+                <span>{{ $t('common.search') }}</span>
+              </el-button>
+              <el-button @click="handleReset">
+                <el-icon><RefreshRight /></el-icon>
+                <span>{{ $t('common.reset') }}</span>
+              </el-button>
+            </div>
+          </div>
+        </div>
+      </el-collapse-transition>
     </div>
 
     <div class="card">
@@ -135,7 +184,7 @@ import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessageBox } from 'element-plus'
-import { getHotEventList, deleteHotEvent, exportHotEventsExcel, exportHotEventsCsv } from '@/api/event'
+import { getHotEventList, deleteHotEvent, exportHotEventsExcel, exportHotEventsCsv, getEventCategories } from '@/api/event'
 import { usePlatformConfigStore } from '@/stores/platformConfig'
 import { getPlatformName } from '@/utils/platform'
 import dayjs from 'dayjs'
@@ -152,6 +201,10 @@ const currentPage = ref(1)
 const pageSize = ref(20)
 const activeSource = ref('all')
 const searchKeyword = ref('')
+const searchCategory = ref('')
+const dateRange = ref([])
+const showAdvancedFilter = ref(false)
+const categoryList = ref([])
 
 const enabledPlatforms = computed(() => platformConfigStore.enabledPlatforms)
 const enabledPlatformCodes = computed(() => platformConfigStore.enabledPlatformCodes)
@@ -178,6 +231,15 @@ const fetchEventList = async () => {
 
     if (searchKeyword.value) {
       params.keyword = searchKeyword.value
+    }
+
+    if (searchCategory.value) {
+      params.category = searchCategory.value
+    }
+
+    if (dateRange.value && dateRange.value.length === 2) {
+      params.startTime = dateRange.value[0]
+      params.endTime = dateRange.value[1]
     }
 
     if (locale.value && locale.value !== 'zh-CN') {
@@ -231,6 +293,24 @@ const handleSearch = () => {
   fetchEventList()
 }
 
+const handleReset = () => {
+  searchKeyword.value = ''
+  searchCategory.value = ''
+  dateRange.value = []
+  activeSource.value = 'all'
+  currentPage.value = 1
+  fetchEventList()
+}
+
+const fetchCategories = async () => {
+  try {
+    const data = await getEventCategories()
+    categoryList.value = data || []
+  } catch (error) {
+    console.error('Failed to fetch categories', error)
+  }
+}
+
 const handleSizeChange = (size) => {
   pageSize.value = size
   currentPage.value = 1
@@ -269,6 +349,13 @@ const handleExport = async (command) => {
     if (searchKeyword.value) {
       params.keyword = searchKeyword.value
     }
+    if (searchCategory.value) {
+      params.category = searchCategory.value
+    }
+    if (dateRange.value && dateRange.value.length === 2) {
+      params.startTime = dateRange.value[0]
+      params.endTime = dateRange.value[1]
+    }
 
     if (command === 'excel') {
       await exportHotEventsExcel(params)
@@ -287,6 +374,7 @@ onMounted(async () => {
   platformConfigStore.loadFromCache()
   await platformConfigStore.fetchPlatformConfigs()
   validateActiveSource()
+  fetchCategories()
   fetchEventList()
 })
 
@@ -325,6 +413,45 @@ onUnmounted(() => {
     .search-bar {
       display: flex;
       gap: 12px;
+    }
+  }
+
+  .advanced-filter {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #ebeef5;
+
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: flex-end;
+    }
+
+    .filter-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+
+      &.filter-actions {
+        flex-direction: row;
+        align-items: center;
+        gap: 12px;
+      }
+    }
+
+    .filter-label {
+      font-size: 14px;
+      color: #606266;
+      font-weight: 500;
+    }
+
+    .filter-select {
+      width: 200px;
+    }
+
+    .filter-date {
+      width: 400px;
     }
   }
 

@@ -56,44 +56,106 @@ public class SensitiveContentFilter {
         String key = SysConfigService.KEY_SENSITIVE_KEYWORDS_PREFIX + type.getCode();
         String value = sysConfigService.getValue(key, null);
         Set<String> keywords = new HashSet<>();
+        List<String> cleanedKeywords = new ArrayList<>();
+        boolean needsFix = false;
+
         if (StrUtil.isNotBlank(value)) {
             String[] parts = value.split("[,，;；\\s]+");
             for (String part : parts) {
                 String trimmed = part.trim();
-                if (!trimmed.isEmpty()) {
-                    keywords.add(trimmed.toLowerCase());
+                if (trimmed.isEmpty()) continue;
+                if (isTooGenericKeyword(type, trimmed)) {
+                    log.warn("[敏感过滤修复] 检测到[{}]类型存在过于宽泛的关键词，已自动移除: {}", type.getCode(), trimmed);
+                    needsFix = true;
+                    continue;
                 }
+                keywords.add(trimmed.toLowerCase());
+                cleanedKeywords.add(trimmed);
             }
         }
+
         if (keywords.isEmpty()) {
             keywords.addAll(getDefaultKeywords(type));
+            cleanedKeywords.clear();
+            for (String kw : getDefaultKeywords(type)) {
+                cleanedKeywords.add(kw);
+            }
         }
+
+        if (needsFix) {
+            String fixedValue = String.join(",", cleanedKeywords);
+            try {
+                sysConfigService.save(key, fixedValue, type.getDisplayName() + "敏感词", "多个关键词用英文逗号、中文逗号或空格分隔");
+                log.info("[敏感过滤修复] 已自动修复[{}]类型的关键词配置", type.getCode());
+            } catch (Exception e) {
+                log.warn("[敏感过滤修复] 自动修复[{}]类型关键词配置失败: {}", type.getCode(), e.getMessage());
+            }
+        }
+
         keywordMap.put(type, keywords);
+    }
+
+    private boolean isTooGenericKeyword(SensitiveType type, String keyword) {
+        if (keyword == null) return false;
+        String lower = keyword.toLowerCase();
+        if (type == SensitiveType.ABUSE) {
+            return "垃圾".equals(lower) || "垃圾".equals(keyword);
+        }
+        return false;
     }
 
     private void loadTypeRegexPatterns(SensitiveType type) {
         String key = SysConfigService.KEY_SENSITIVE_REGEX_PREFIX + type.getCode();
         String value = sysConfigService.getValue(key, null);
         List<Pattern> patterns = new ArrayList<>();
+
+        List<String> cleanedPatterns = new ArrayList<>();
+        boolean needsFix = false;
+
         if (StrUtil.isNotBlank(value)) {
             String[] parts = value.split("\\|\\|");
             for (String part : parts) {
                 String trimmed = part.trim();
-                if (!trimmed.isEmpty()) {
-                    try {
-                        patterns.add(Pattern.compile(trimmed, Pattern.CASE_INSENSITIVE));
-                    } catch (Exception e) {
-                        log.warn("无效的正则表达式[{}]: {}", type.getCode(), trimmed);
-                    }
+                if (trimmed.isEmpty()) continue;
+                if (isProblematicUrlRegex(trimmed)) {
+                    log.warn("[敏感过滤修复] 检测到[{}]类型存在有缺陷的URL正则，已自动移除: {}", type.getCode(), trimmed);
+                    needsFix = true;
+                    continue;
+                }
+                try {
+                    patterns.add(Pattern.compile(trimmed, Pattern.CASE_INSENSITIVE));
+                    cleanedPatterns.add(trimmed);
+                } catch (Exception e) {
+                    log.warn("无效的正则表达式[{}]: {}", type.getCode(), trimmed);
+                    needsFix = true;
                 }
             }
         }
+
         for (String regex : getDefaultRegexPatterns(type)) {
             try {
                 patterns.add(Pattern.compile(regex, Pattern.CASE_INSENSITIVE));
+                cleanedPatterns.add(regex);
             } catch (Exception ignored) {}
         }
+
+        if (needsFix) {
+            String fixedValue = String.join("||", cleanedPatterns);
+            try {
+                sysConfigService.save(key, fixedValue, type.getDisplayName() + "正则表达式", "多个正则表达式用 || 分隔");
+                log.info("[敏感过滤修复] 已自动修复[{}]类型的正则配置", type.getCode());
+            } catch (Exception e) {
+                log.warn("[敏感过滤修复] 自动修复[{}]类型正则配置失败: {}", type.getCode(), e.getMessage());
+            }
+        }
+
         regexPatternMap.put(type, patterns);
+    }
+
+    private boolean isProblematicUrlRegex(String regex) {
+        if (regex == null) return false;
+        String lower = regex.toLowerCase();
+        return lower.contains("http[s]?://(?!") || lower.contains("http?://") && lower.contains("weibo") && lower.contains("zhihu");
     }
 
     private Set<String> getDefaultKeywords(SensitiveType type) {
@@ -113,10 +175,10 @@ public class SensitiveContentFilter {
             case ABUSE:
                 keywords.add("傻逼");
                 keywords.add("蠢货");
-                keywords.add("垃圾");
                 keywords.add("狗娘养");
                 keywords.add("王八蛋");
                 keywords.add("滚蛋");
+                keywords.add("狗屎");
                 break;
             case AD:
                 keywords.add("加微信");
@@ -156,10 +218,9 @@ public class SensitiveContentFilter {
         List<String> patterns = new ArrayList<>();
         switch (type) {
             case AD:
-                patterns.add("(微信|wx|vx)[\\s:：]?[a-zA-Z0-9_-]{5,}");
-                patterns.add("(qq|扣扣)[\\s:：]?\\d{5,}");
-                patterns.add("(电话|手机|联系电话)[\\s:：]?1[3-9]\\d{9}");
-                patterns.add("http[s]?://(?!(weibo\\.com|zhihu\\.com|bilibili\\.com|douyin\\.com|baidu\\.com))[^\\s]+");
+                patterns.add("(微信|wx|vx)[\\s:：]?[a-zA-Z0-9_-]{6,}");
+                patterns.add("(qq|扣扣)[\\s:：]?\\d{6,}");
+                patterns.add("(电话|手机|联系电话|Tel|tel)[\\s:：]?1[3-9]\\d{9}");
                 break;
             case PORN:
                 patterns.add("(www\\.)?[^\\s]*?(porn|sex|xxx|成人|色情)[^\\s]*");

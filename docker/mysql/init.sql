@@ -101,7 +101,7 @@ INSERT INTO sys_config (config_key, config_value, config_name, description) VALU
 ('sensitiveFilterEnabled', 'true', '敏感内容过滤开关', '是否启用敏感内容过滤功能，过滤涉政、色情、辱骂、广告等内容'),
 ('sensitiveKeywords.politics', '法轮功,邪教', '涉政敏感词', '多个关键词用英文逗号、中文逗号或空格分隔'),
 ('sensitiveKeywords.porn', '色情,黄色,成人,av,性爱', '色情敏感词', '多个关键词用英文逗号、中文逗号或空格分隔'),
-('sensitiveKeywords.abuse', '傻逼,蠢货,垃圾,狗娘养,王八蛋,滚蛋', '辱骂敏感词', '多个关键词用英文逗号、中文逗号或空格分隔'),
+('sensitiveKeywords.abuse', '傻逼,蠢货,狗娘养,王八蛋,滚蛋,狗屎', '辱骂敏感词', '多个关键词用英文逗号、中文逗号或空格分隔'),
 ('sensitiveKeywords.ad', '加微信,加qq,代购,代理,刷单,兼职赚钱,网赚', '广告敏感词', '多个关键词用英文逗号、中文逗号或空格分隔'),
 ('sensitiveKeywords.violence', '杀人,自杀,暴力,血腥', '暴力敏感词', '多个关键词用英文逗号、中文逗号或空格分隔'),
 ('sensitiveKeywords.gambling', '赌博,博彩,彩票,百家乐,老虎机', '赌博敏感词', '多个关键词用英文逗号、中文逗号或空格分隔'),

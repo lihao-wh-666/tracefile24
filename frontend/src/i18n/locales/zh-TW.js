@@ -40,7 +40,13 @@ export default {
     exportExcel: '匯出 Excel',
     exportCsv: '匯出 CSV',
     exportSuccess: '匯出成功',
-    exportFailed: '匯出失敗'
+    exportFailed: '匯出失敗',
+    advancedFilter: '進階篩選',
+    selectCategory: '選擇分類',
+    timeRange: '時間範圍',
+    startTime: '開始時間',
+    endTime: '結束時間',
+    reset: '重置'
   },
   events: {
     page: '熱點事件',
