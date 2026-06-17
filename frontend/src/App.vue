@@ -32,10 +32,6 @@
                 <el-icon><List /></el-icon>
                 <span>{{ $t('nav.events') }}</span>
               </el-menu-item>
-              <el-menu-item index="/event-logs">
-                <el-icon><Notebook /></el-icon>
-                <span>{{ $t('nav.eventLogs') }}</span>
-              </el-menu-item>
               <el-menu-item index="/crawl-records">
                 <el-icon><Refresh /></el-icon>
                 <span>{{ $t('nav.crawlRecords') }}</span>
@@ -51,10 +47,6 @@
             </el-menu>
           </div>
           <div class="header-right">
-            <el-button type="primary" @click="handleCrawlAll" :loading="loading">
-              <el-icon><RefreshRight /></el-icon>
-              <span>{{ $t('crawl.startAll') }}</span>
-            </el-button>
             <LanguageSwitcher />
             <el-dropdown>
               <div class="user-info">
@@ -79,7 +71,11 @@
                     <el-icon><Message /></el-icon>
                     {{ userStore.user?.email || $t('user.noEmail') }}
                   </el-dropdown-item>
-                  <el-dropdown-item divided @click="goToProfile">
+                  <el-dropdown-item divided @click="goToEventLogs">
+                    <el-icon><Notebook /></el-icon>
+                    {{ $t('nav.eventLogs') }}
+                  </el-dropdown-item>
+                  <el-dropdown-item @click="goToProfile">
                     <el-icon><Setting /></el-icon>
                     {{ $t('user.profile') }}
                   </el-dropdown-item>
@@ -111,7 +107,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessageBox } from 'element-plus'
 import { UserFilled, ArrowDown, SwitchButton, Setting, Notebook } from '@element-plus/icons-vue'
-import { executeAllCrawl } from '@/api/multiCrawler'
 import { getSessionTimeoutConfig } from '@/api/sysConfig'
 import { useUserStore } from '@/stores/user'
 import { useMessageConfigStore } from '@/stores/messageConfig'
@@ -129,7 +124,6 @@ const messageConfigStore = useMessageConfigStore()
 const activeMenu = computed(() => route.path)
 const isLoginPage = computed(() => route.path === '/login')
 
-const loading = ref(false)
 const timeoutModalRef = ref(null)
 
 const onWarningShown = (data) => {
@@ -212,26 +206,8 @@ onUnmounted(() => {
   destroySessionTimeout()
 })
 
-const handleCrawlAll = async () => {
-  if (loading.value) return
-  loading.value = true
-  try {
-    const result = await executeAllCrawl(false)
-    const enabledSources = result?.enabledSources || 0
-    const platforms = result?.platforms || []
-    if (enabledSources === 0) {
-      message.warning(t('crawl.noEnabledPlatforms'))
-    } else {
-      message.success(t('crawl.crawlSuccess', { count: enabledSources, platforms: platforms.join(', ') }))
-    }
-    setTimeout(() => {
-      window.location.reload()
-    }, 1500)
-  } catch (error) {
-    message.error(t('crawl.crawlFailed', { error: error.message || 'Unknown' }))
-  } finally {
-    loading.value = false
-  }
+const goToEventLogs = () => {
+  router.push('/event-logs')
 }
 
 const handleLogout = async () => {

@@ -2,6 +2,16 @@
   <div class="crawl-records-page">
     <div class="page-header">
       <h2 class="page-title">抓取记录</h2>
+      <div class="header-actions">
+        <el-button type="primary" @click="handleCrawlAll" :loading="crawling">
+          <el-icon><RefreshRight /></el-icon>
+          <span>立即抓取全部</span>
+        </el-button>
+        <el-button @click="handleRefresh">
+          <el-icon><Refresh /></el-icon>
+          <span>刷新</span>
+        </el-button>
+      </div>
     </div>
 
     <el-row :gutter="20" class="mb-20">
@@ -122,14 +132,19 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { getCrawlRecordList, getCrawlStatistics } from '@/api/crawlRecord'
+import { executeAllCrawl } from '@/api/multiCrawler'
 import { usePlatformConfigStore } from '@/stores/platformConfig'
 import { getPlatformName } from '@/utils/platform'
+import message from '@/utils/message'
 import dayjs from 'dayjs'
 
+const { t } = useI18n()
 const platformConfigStore = usePlatformConfigStore()
 
 const loading = ref(false)
+const crawling = ref(false)
 const recordList = ref([])
 const total = ref(0)
 const currentPage = ref(1)
@@ -203,6 +218,33 @@ const handleCurrentChange = (page) => {
   fetchRecordList()
 }
 
+const handleCrawlAll = async () => {
+  if (crawling.value) return
+  crawling.value = true
+  try {
+    const result = await executeAllCrawl(false)
+    const enabledSources = result?.enabledSources || 0
+    const platforms = result?.platforms || []
+    if (enabledSources === 0) {
+      message.warning('没有已启用的抓取平台')
+    } else {
+      message.success(`已触发 ${enabledSources} 个平台的抓取任务`)
+    }
+    setTimeout(() => {
+      handleRefresh()
+    }, 1500)
+  } catch (error) {
+    message.error(`抓取失败: ${error.message || '未知错误'}`)
+  } finally {
+    crawling.value = false
+  }
+}
+
+const handleRefresh = () => {
+  fetchRecordList()
+  fetchStatistics()
+}
+
 onMounted(async () => {
   platformConfigStore.loadFromCache()
   await platformConfigStore.fetchPlatformConfigs()
@@ -213,6 +255,17 @@ onMounted(async () => {
 
 <style scoped lang="scss">
 .crawl-records-page {
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .header-actions {
+      display: flex;
+      gap: 12px;
+    }
+  }
+
   .filter-bar {
     display: flex;
     justify-content: space-between;
