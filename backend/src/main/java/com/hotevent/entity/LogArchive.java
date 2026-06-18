@@ -43,6 +43,9 @@ public class LogArchive {
     @Column(name = "status", length = 20, nullable = false)
     private String status;
 
+    @Column(name = "log_type", length = 30, nullable = false)
+    private String logType;
+
     @Column(name = "remark", length = 500)
     private String remark;
 
@@ -55,10 +58,17 @@ public class LogArchive {
         if (status == null) {
             status = "PENDING";
         }
+        if (logType == null) {
+            logType = "DATABASE_LOG";
+        }
     }
 
     public static final String STATUS_PENDING = "PENDING";
     public static final String STATUS_ARCHIVING = "ARCHIVING";
     public static final String STATUS_COMPLETED = "COMPLETED";
     public static final String STATUS_FAILED = "FAILED";
+
+    public static final String LOG_TYPE_DATABASE = "DATABASE_LOG";
+    public static final String LOG_TYPE_BACKEND = "BACKEND_LOG";
+    public static final String LOG_TYPE_FRONTEND = "FRONTEND_LOG";
 }

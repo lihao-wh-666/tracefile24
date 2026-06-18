@@ -8,6 +8,7 @@ import router from './router'
 import i18n from './i18n'
 import './styles/main.scss'
 import message from '@/utils/message'
+import logger from '@/utils/logger'
 
 const app = createApp(App)
 
@@ -21,5 +22,6 @@ app.use(ElementPlus)
 app.use(i18n)
 
 app.config.globalProperties.$message = message
+app.config.globalProperties.$logger = logger
 
 app.mount('#app')

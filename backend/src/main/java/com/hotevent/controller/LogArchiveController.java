@@ -27,9 +27,10 @@ public class LogArchiveController {
     @GetMapping
     public Result<PageResult<LogArchive>> getArchives(
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String logType,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
-        PageResult<LogArchive> result = logArchiveService.getArchives(status, page, size);
+        PageResult<LogArchive> result = logArchiveService.getArchives(status, logType, page, size);
         return Result.success(result);
     }
 
@@ -44,9 +45,10 @@ public class LogArchiveController {
     public Result<LogArchive> createArchive(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime,
+            @RequestParam(defaultValue = "DATABASE_LOG") String logType,
             @RequestParam(required = false) String remark) {
         try {
-            LogArchive archive = logArchiveService.executeArchive(startTime, endTime, remark);
+            LogArchive archive = logArchiveService.executeArchive(startTime, endTime, logType, remark);
             return Result.success(archive);
         } catch (Exception e) {
             return Result.error("归档失败: " + e.getMessage());

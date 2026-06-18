@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { login, logout, getCurrentUser } from '@/api/auth'
+import logger from '@/utils/logger'
 
 const TOKEN_KEY = 'hot_event_token'
 const USER_KEY = 'hot_event_user'
@@ -23,11 +24,14 @@ export const useUserStore = defineStore('user', {
       this.user = res.user
       localStorage.setItem(TOKEN_KEY, res.token)
       localStorage.setItem(USER_KEY, JSON.stringify(res.user))
+      logger.setUserInfo({ id: res.user.id, username: res.user.username || res.user.nickname })
+      logger.info('用户登录成功')
       return res
     },
 
     async logout() {
       try {
+        logger.info('用户退出登录')
         await logout()
       } catch (e) {
       } finally {
@@ -35,6 +39,7 @@ export const useUserStore = defineStore('user', {
         this.user = null
         localStorage.removeItem(TOKEN_KEY)
         localStorage.removeItem(USER_KEY)
+        logger.setUserInfo(null)
       }
     },
 
@@ -43,12 +48,14 @@ export const useUserStore = defineStore('user', {
         const user = await getCurrentUser()
         this.user = user
         localStorage.setItem(USER_KEY, JSON.stringify(user))
+        logger.setUserInfo({ id: user.id, username: user.username || user.nickname })
         return user
       } catch (e) {
         this.token = ''
         this.user = null
         localStorage.removeItem(TOKEN_KEY)
         localStorage.removeItem(USER_KEY)
+        logger.setUserInfo(null)
         throw e
       }
     },
@@ -56,6 +63,7 @@ export const useUserStore = defineStore('user', {
     updateUser(user) {
       this.user = user
       localStorage.setItem(USER_KEY, JSON.stringify(user))
+      logger.setUserInfo({ id: user.id, username: user.username || user.nickname })
     }
   }
 })

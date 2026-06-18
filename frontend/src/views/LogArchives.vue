@@ -45,9 +45,41 @@
       </div>
     </div>
 
+    <div class="stats-row mb-20" v-if="statistics.typeStats">
+      <div class="stat-card stat-card-mini">
+        <div class="stat-value-sm">{{ getTypeStat('DATABASE_LOG', 'count') || 0 }}</div>
+        <div class="stat-label">{{ $t('logArchives.typeDatabase') }}</div>
+        <div class="stat-desc">{{ formatFileSize(getTypeStat('DATABASE_LOG', 'originalSize')) }} / {{ getTypeStat('DATABASE_LOG', 'logCount') }} {{ $t('logArchives.entries') }}</div>
+      </div>
+      <div class="stat-card stat-card-mini">
+        <div class="stat-value-sm">{{ getTypeStat('BACKEND_LOG', 'count') || 0 }}</div>
+        <div class="stat-label">{{ $t('logArchives.typeBackend') }}</div>
+        <div class="stat-desc">{{ formatFileSize(getTypeStat('BACKEND_LOG', 'originalSize')) }} / {{ getTypeStat('BACKEND_LOG', 'logCount') }} {{ $t('logArchives.files') }}</div>
+      </div>
+      <div class="stat-card stat-card-mini">
+        <div class="stat-value-sm">{{ getTypeStat('FRONTEND_LOG', 'count') || 0 }}</div>
+        <div class="stat-label">{{ $t('logArchives.typeFrontend') }}</div>
+        <div class="stat-desc">{{ formatFileSize(getTypeStat('FRONTEND_LOG', 'originalSize')) }} / {{ getTypeStat('FRONTEND_LOG', 'logCount') }} {{ $t('logArchives.entries') }}</div>
+      </div>
+    </div>
+
     <div class="card mb-20">
       <div class="filter-bar">
         <div class="filter-row">
+          <div class="filter-item">
+            <label class="filter-label">{{ $t('logArchives.logType') }}</label>
+            <el-select
+              v-model="searchLogType"
+              :placeholder="$t('common.selectAll')"
+              clearable
+              class="filter-select"
+              @change="handleSearch"
+            >
+              <el-option :label="$t('logArchives.typeDatabase')" value="DATABASE_LOG" />
+              <el-option :label="$t('logArchives.typeBackend')" value="BACKEND_LOG" />
+              <el-option :label="$t('logArchives.typeFrontend')" value="FRONTEND_LOG" />
+            </el-select>
+          </div>
           <div class="filter-item">
             <label class="filter-label">{{ $t('logArchives.status') }}</label>
             <el-select
@@ -93,6 +125,14 @@
         <el-table-column prop="logCount" :label="$t('logArchives.logCount')" width="100" align="center">
           <template #default="{ row }">
             {{ row.logCount ?? '-' }}
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="logType" :label="$t('logArchives.logType')" width="120" align="center">
+          <template #default="{ row }">
+            <el-tag :type="getLogTypeTagType(row.logType)" size="small">
+              {{ getLogTypeName(row.logType) }}
+            </el-tag>
           </template>
         </el-table-column>
 
@@ -172,6 +212,13 @@
       @close="resetCreateForm"
     >
       <el-form :model="createForm" label-width="120px">
+        <el-form-item :label="$t('logArchives.logType')">
+          <el-select v-model="createForm.logType" style="width: 100%">
+            <el-option :label="$t('logArchives.typeDatabase')" value="DATABASE_LOG" />
+            <el-option :label="$t('logArchives.typeBackend')" value="BACKEND_LOG" />
+            <el-option :label="$t('logArchives.typeFrontend')" value="FRONTEND_LOG" />
+          </el-select>
+        </el-form-item>
         <el-form-item :label="$t('logArchives.startTime')">
           <el-date-picker
             v-model="createForm.startTime"
@@ -232,12 +279,14 @@ const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(20)
 const searchStatus = ref('')
+const searchLogType = ref('')
 const statistics = ref({})
 const autoArchiving = ref(false)
 
 const showCreateDialog = ref(false)
 const creating = ref(false)
 const createForm = ref({
+  logType: 'DATABASE_LOG',
   startTime: '',
   endTime: '',
   remark: ''
@@ -252,6 +301,9 @@ const fetchArchiveList = async () => {
     }
     if (searchStatus.value) {
       params.status = searchStatus.value
+    }
+    if (searchLogType.value) {
+      params.logType = searchLogType.value
     }
     const data = await getLogArchiveList(params)
     archiveList.value = data.records || []
@@ -310,6 +362,31 @@ const getStatusTagType = (status) => {
   return map[status] || 'info'
 }
 
+const getLogTypeName = (logType) => {
+  const map = {
+    'DATABASE_LOG': t('logArchives.typeDatabase'),
+    'BACKEND_LOG': t('logArchives.typeBackend'),
+    'FRONTEND_LOG': t('logArchives.typeFrontend')
+  }
+  return map[logType] || logType
+}
+
+const getLogTypeTagType = (logType) => {
+  const map = {
+    'DATABASE_LOG': 'primary',
+    'BACKEND_LOG': 'success',
+    'FRONTEND_LOG': 'warning'
+  }
+  return map[logType] || 'info'
+}
+
+const getTypeStat = (type, field) => {
+  if (!statistics.value.typeStats || !statistics.value.typeStats[type]) {
+    return 0
+  }
+  return statistics.value.typeStats[type][field]
+}
+
 const handleSearch = () => {
   currentPage.value = 1
   fetchArchiveList()
@@ -337,7 +414,7 @@ const handleCreateArchive = async () => {
   }
   creating.value = true
   try {
-    await createLogArchive(createForm.value.startTime, createForm.value.endTime, createForm.value.remark)
+    await createLogArchive(createForm.value.startTime, createForm.value.endTime, createForm.value.logType, createForm.value.remark)
     message.success(t('logArchives.createSuccess'))
     showCreateDialog.value = false
     resetCreateForm()
@@ -395,7 +472,7 @@ const handleDelete = async (row) => {
 }
 
 const resetCreateForm = () => {
-  createForm.value = { startTime: '', endTime: '', remark: '' }
+  createForm.value = { logType: 'DATABASE_LOG', startTime: '', endTime: '', remark: '' }
 }
 
 onMounted(() => {
@@ -437,10 +514,28 @@ onMounted(() => {
         margin-bottom: 4px;
       }
 
+      .stat-value-sm {
+        font-size: 18px;
+        font-weight: 600;
+        color: #409eff;
+        margin-bottom: 4px;
+      }
+
       .stat-label {
         font-size: 13px;
         color: #909399;
       }
+
+      .stat-desc {
+        font-size: 12px;
+        color: #c0c4cc;
+        margin-top: 4px;
+      }
+    }
+
+    .stat-card-mini {
+      min-width: 200px;
+      padding: 12px 16px;
     }
   }
 

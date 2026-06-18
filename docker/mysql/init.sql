@@ -191,9 +191,35 @@ CREATE TABLE IF NOT EXISTS log_archive (
     archived_size_bytes BIGINT DEFAULT 0 COMMENT '压缩后大小(字节)',
     archive_path VARCHAR(500) COMMENT '归档文件路径',
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT '状态(PENDING/ARCHIVING/COMPLETED/FAILED)',
+    log_type VARCHAR(30) NOT NULL DEFAULT 'DATABASE_LOG' COMMENT '日志类型(DATABASE_LOG/BACKEND_LOG/FRONTEND_LOG)',
     remark VARCHAR(500) COMMENT '备注',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     INDEX idx_status (status),
+    INDEX idx_log_type (log_type),
     INDEX idx_start_time (start_time),
     INDEX idx_create_time (create_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='日志归档记录表';
+
+CREATE TABLE IF NOT EXISTS frontend_log (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    log_level VARCHAR(20) NOT NULL COMMENT '日志级别(INFO/WARN/ERROR/DEBUG)',
+    message TEXT NOT NULL COMMENT '日志消息',
+    page_url VARCHAR(1000) COMMENT '页面URL',
+    user_agent VARCHAR(500) COMMENT '用户代理',
+    browser_info VARCHAR(500) COMMENT '浏览器信息',
+    os_info VARCHAR(200) COMMENT '操作系统信息',
+    screen_resolution VARCHAR(50) COMMENT '屏幕分辨率',
+    stack_trace TEXT COMMENT '堆栈信息',
+    user_id BIGINT COMMENT '用户ID',
+    username VARCHAR(100) COMMENT '用户名',
+    error_type VARCHAR(100) COMMENT '错误类型',
+    line_number INT COMMENT '行号',
+    column_number INT COMMENT '列号',
+    additional_info TEXT COMMENT '附加信息',
+    log_time DATETIME NOT NULL COMMENT '日志产生时间',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX idx_log_level (log_level),
+    INDEX idx_log_time (log_time),
+    INDEX idx_user_id (user_id),
+    INDEX idx_create_time (create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='前端日志表';

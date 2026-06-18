@@ -16,8 +16,8 @@ export function getLogArchiveById(id) {
   })
 }
 
-export function createLogArchive(startTime, endTime, remark) {
-  const params = { startTime, endTime }
+export function createLogArchive(startTime, endTime, logType, remark) {
+  const params = { startTime, endTime, logType }
   if (remark) params.remark = remark
   return request({
     url: '/log-archives',

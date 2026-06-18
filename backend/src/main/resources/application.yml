@@ -246,7 +246,10 @@ hot-event:
     enabled: true
     auto-archive-enabled: true
     archive-path: ./log-archives
+    backend-log-path: ./logs
     retention-days: 30
+    backend-retention-days: 30
+    frontend-retention-days: 30
     cron: "0 0 2 * * ?"
     batch-size: 1000
     delete-after-archive: true
