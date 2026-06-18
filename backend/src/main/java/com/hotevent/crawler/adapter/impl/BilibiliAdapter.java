@@ -72,9 +72,11 @@ public class BilibiliAdapter extends AbstractPlatformAdapter {
             case 2:
                 return HOT_RANK_API + "?rid=0&type=all";
             case 3:
-                return VIKI_V2_API;
+                return VIKI_API;
+            case 4:
+                return POPULAR_API + "?ps=" + pageSize + "&pn=1";
             default:
-                return POPULAR_API + "?ps=" + pageSize + "&pn=" + page;
+                return POPULAR_API + "?ps=" + pageSize + "&pn=" + (page - 3);
         }
     }
 
@@ -252,7 +254,16 @@ public class BilibiliAdapter extends AbstractPlatformAdapter {
             list = dataObj.getJSONArray("list");
         }
         if (list == null) {
-            list = dataObj.getJSONArray("trending");
+            JSONObject trendingObj = dataObj.getJSONObject("trending");
+            if (trendingObj != null) {
+                list = trendingObj.getJSONArray("list");
+            }
+        }
+        if (list == null) {
+            Object dataArr = dataObj.get("data");
+            if (dataArr instanceof JSONArray) {
+                list = (JSONArray) dataArr;
+            }
         }
 
         if (list == null || list.isEmpty()) {
