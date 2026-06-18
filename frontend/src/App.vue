@@ -75,6 +75,10 @@
                     <el-icon><Notebook /></el-icon>
                     {{ $t('nav.eventLogs') }}
                   </el-dropdown-item>
+                  <el-dropdown-item @click="goToLogArchives">
+                    <el-icon><FolderOpened /></el-icon>
+                    {{ $t('nav.logArchives') }}
+                  </el-dropdown-item>
                   <el-dropdown-item @click="goToProfile">
                     <el-icon><Setting /></el-icon>
                     {{ $t('user.profile') }}
@@ -106,7 +110,7 @@ import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessageBox } from 'element-plus'
-import { UserFilled, ArrowDown, SwitchButton, Setting, Notebook } from '@element-plus/icons-vue'
+import { UserFilled, ArrowDown, SwitchButton, Setting, Notebook, FolderOpened } from '@element-plus/icons-vue'
 import { getSessionTimeoutConfig } from '@/api/sysConfig'
 import { useUserStore } from '@/stores/user'
 import { useMessageConfigStore } from '@/stores/messageConfig'
@@ -208,6 +212,10 @@ onUnmounted(() => {
 
 const goToEventLogs = () => {
   router.push('/event-logs')
+}
+
+const goToLogArchives = () => {
+  router.push('/log-archives')
 }
 
 const handleLogout = async () => {

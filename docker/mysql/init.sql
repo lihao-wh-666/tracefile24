@@ -180,3 +180,20 @@ CREATE TABLE IF NOT EXISTS hot_event_log (
     INDEX idx_operation_time (operation_time),
     INDEX idx_source_operation_time (source, operation_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='热点事件修改日志表';
+
+CREATE TABLE IF NOT EXISTS log_archive (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    archive_name VARCHAR(200) NOT NULL COMMENT '归档名称',
+    start_time DATETIME NOT NULL COMMENT '日志起始时间',
+    end_time DATETIME NOT NULL COMMENT '日志结束时间',
+    log_count INT DEFAULT 0 COMMENT '归档日志条数',
+    original_size_bytes BIGINT DEFAULT 0 COMMENT '原始数据大小(字节)',
+    archived_size_bytes BIGINT DEFAULT 0 COMMENT '压缩后大小(字节)',
+    archive_path VARCHAR(500) COMMENT '归档文件路径',
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT '状态(PENDING/ARCHIVING/COMPLETED/FAILED)',
+    remark VARCHAR(500) COMMENT '备注',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX idx_status (status),
+    INDEX idx_start_time (start_time),
+    INDEX idx_create_time (create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='日志归档记录表';

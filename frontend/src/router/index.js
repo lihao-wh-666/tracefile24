@@ -33,6 +33,12 @@ const routes = [
     meta: { title: '修改日志' }
   },
   {
+    path: '/log-archives',
+    name: 'LogArchives',
+    component: () => import('@/views/LogArchives.vue'),
+    meta: { title: '日志归档' }
+  },
+  {
     path: '/crawl-records',
     name: 'CrawlRecords',
     component: () => import('@/views/CrawlRecords.vue'),

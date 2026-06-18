@@ -7,6 +7,8 @@ export default {
   nav: {
     dashboard: 'Dashboard',
     events: 'Hot Events',
+    eventLogs: 'Change Logs',
+    logArchives: 'Log Archives',
     crawlRecords: 'Crawl Records',
     users: 'User Management',
     sysConfig: 'System Settings'
@@ -176,5 +178,38 @@ export default {
     logDetail: 'Log Detail',
     fetchFailed: 'Failed to fetch logs',
     changeHistory: 'Change History'
+  },
+  logArchives: {
+    page: 'Log Archives',
+    archiveName: 'Archive Name',
+    timeRange: 'Time Range',
+    startTime: 'Start Time',
+    endTime: 'End Time',
+    logCount: 'Log Count',
+    originalSize: 'Original Size',
+    archivedSize: 'Compressed Size',
+    status: 'Status',
+    statusPending: 'Pending',
+    statusArchiving: 'Archiving',
+    statusCompleted: 'Completed',
+    statusFailed: 'Failed',
+    remark: 'Remark',
+    remarkPlaceholder: 'Enter archive remark (optional)',
+    createTime: 'Created At',
+    createArchive: 'Manual Archive',
+    autoArchive: 'Auto Archive',
+    download: 'Download',
+    totalArchives: 'Total Archives',
+    completedArchives: 'Completed',
+    compressionRatio: 'Compression Ratio',
+    totalLogCount: 'Total Archived Logs',
+    timeRequired: 'Please select time range',
+    timeRangeInvalid: 'End time must be after start time',
+    createSuccess: 'Archive task created',
+    createFailed: 'Failed to create archive task',
+    autoArchiveTriggered: 'Auto archive triggered',
+    autoArchiveFailed: 'Failed to trigger auto archive',
+    downloadFailed: 'Failed to download archive file',
+    deleteConfirm: 'Are you sure you want to delete this archive record and its file? This action cannot be undone.'
   }
 }

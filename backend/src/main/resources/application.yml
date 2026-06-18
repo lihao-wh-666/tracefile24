@@ -242,3 +242,11 @@ hot-event:
         cron: "0 */15 * * * ?"
         max-concurrent: 3
         max-items: 80
+  log-archive:
+    enabled: true
+    auto-archive-enabled: true
+    archive-path: ./log-archives
+    retention-days: 30
+    cron: "0 0 2 * * ?"
+    batch-size: 1000
+    delete-after-archive: true
