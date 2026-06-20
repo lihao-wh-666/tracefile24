@@ -51,6 +51,7 @@ services:
       - "${BACKEND_PORT:-9090}:9090"
     volumes:
       - ./backend/logs:/app/logs
+      - ./backend/log-archives:/app/log-archives
       - ./backend/config:/app/config:ro
     networks:
       - hot-event-network
