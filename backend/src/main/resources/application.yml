@@ -157,8 +157,9 @@ hot-event:
       incremental-enabled: true
 
   crawler:
-    enabled: false
-    cron: "0 */30 * * * ?"
+    enabled: true
+    scheduled-task-enabled: false
+    cron: "0 */10 * * * ?"
     sources:
       - weibo
       - zhihu
