@@ -37,6 +37,9 @@ public class CrawlerService {
     @Autowired
     private AsyncTaskExecutor asyncTaskExecutor;
 
+    @Autowired
+    private HotEventService hotEventService;
+
     private final Map<String, AtomicInteger> consecutiveFailures = new ConcurrentHashMap<>();
 
     private static final int MAX_CONSECUTIVE_FAILURES = 5;
@@ -186,6 +189,11 @@ public class CrawlerService {
             log.info("  - 成功保存: {} (新增: {}, 更新: {})", successCount.get(), insertCount.get(), updateCount.get());
             log.info("  - 失败数: {}", failCount.get());
             log.info("  - 耗时: {}ms ({}秒)", costTime, String.format("%.2f", costTime / 1000.0));
+
+            log.info("[{}] 开始执行排名重排...", source);
+            int rerankCount = hotEventService.rerankBySource(source);
+            log.info("[{}] 排名重排完成，更新{}条记录的排名", source, rerankCount);
+
             log.info("---------- [{}] 抓取完成 ----------", source);
 
         } catch (AbstractHotEventCrawler.CrawlerException ce) {

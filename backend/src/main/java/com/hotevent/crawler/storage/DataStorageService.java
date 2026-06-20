@@ -56,6 +56,7 @@ public class DataStorageService {
 
         List<HotEvent> batchInsert = new ArrayList<>(BATCH_SIZE);
         List<HotEvent> allInserted = new ArrayList<>();
+        List<HotEvent> allUpdated = new ArrayList<>();
 
         for (int i = 0; i < deduplicatedItems.size(); i++) {
             DataItem item = deduplicatedItems.get(i);
@@ -77,6 +78,7 @@ public class DataStorageService {
                         insertCount.incrementAndGet();
                         break;
                     case UPDATED:
+                        allUpdated.add(result.event);
                         updateCount.incrementAndGet();
                         break;
                     case SKIPPED:
@@ -107,12 +109,46 @@ public class DataStorageService {
             }
         }
 
+        int rerankCount = rerankBySource(source);
+        log.info("[存储][{}] 批次保存后重新排名: 重排{}条记录", source, rerankCount);
+
         incrementalCrawlManager.recordStats(source, null, insertCount.get(), updateCount.get());
 
         int total = insertCount.get() + updateCount.get();
         log.info("[存储][{}] 批处理完成: 新增={}, 更新={}, 跳过={}, 错误={}, 总计={}",
                 source, insertCount.get(), updateCount.get(), skipCount.get(), errorCount.get(), total);
         return total;
+    }
+
+    public int rerankBySource(String source) {
+        if (StrUtil.isBlank(source)) {
+            return 0;
+        }
+
+        try {
+            LocalDateTime recentTime = LocalDateTime.now().minusHours(24);
+            List<HotEvent> events = hotEventRepository
+                    .findBySourceAndCrawlTimeAfterOrderByHotValueDesc(source, recentTime);
+
+            if (events == null || events.isEmpty()) {
+                return 0;
+            }
+
+            int count = 0;
+            for (int i = 0; i < events.size(); i++) {
+                HotEvent event = events.get(i);
+                int newRank = i + 1;
+                if (event.getHotRank() == null || event.getHotRank() != newRank) {
+                    event.setHotRank(newRank);
+                    hotEventRepository.save(event);
+                    count++;
+                }
+            }
+            return count;
+        } catch (Exception e) {
+            log.warn("[排名重排][{}] 重排失败: {}", source, e.getMessage());
+            return 0;
+        }
     }
 
     public SaveResult saveOrUpdate(DataItem item, String source) {

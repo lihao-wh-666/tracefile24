@@ -53,4 +53,19 @@ public interface HotEventRepository extends JpaRepository<HotEvent, Long>, JpaSp
     List<HotEvent> findBySourceAndTimeRange(@Param("source") String source,
                                             @Param("startTime") LocalDateTime startTime,
                                             @Param("endTime") LocalDateTime endTime);
+
+    @Query("SELECT h FROM HotEvent h WHERE h.deleted = false AND h.source = :source " +
+           "AND h.crawlTime >= :crawlTime ORDER BY h.hotValue DESC, h.id ASC")
+    List<HotEvent> findBySourceAndCrawlTimeAfterOrderByHotValueDesc(
+            @Param("source") String source,
+            @Param("crawlTime") LocalDateTime crawlTime);
+
+    @Query("SELECT h FROM HotEvent h WHERE h.deleted = false " +
+           "AND h.crawlTime >= :crawlTime ORDER BY h.hotValue DESC, h.id ASC")
+    List<HotEvent> findByCrawlTimeAfterOrderByHotValueDesc(
+            @Param("crawlTime") LocalDateTime crawlTime);
+
+    @Query("SELECT h FROM HotEvent h WHERE h.deleted = false AND h.source = :source " +
+           "ORDER BY h.hotValue DESC, h.id ASC")
+    List<HotEvent> findBySourceOrderByHotValueDesc(@Param("source") String source);
 }

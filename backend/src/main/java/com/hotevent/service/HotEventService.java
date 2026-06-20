@@ -54,12 +54,20 @@ public class HotEventService {
     public PageResult<HotEvent> getHotEventList(String source, String keyword, String category,
                                                 LocalDateTime startTime, LocalDateTime endTime,
                                                 int page, int size) {
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "hotValue"));
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "hotValue", "id"));
         Specification<HotEvent> spec = buildSearchSpecification(source, keyword, category, startTime, endTime);
         Page<HotEvent> hotEventPage = hotEventRepository.findAll(spec, pageable);
 
+        List<HotEvent> events = hotEventPage.getContent();
+        if (events != null && !events.isEmpty()) {
+            int startRank = (page - 1) * size + 1;
+            for (int i = 0; i < events.size(); i++) {
+                events.get(i).setHotRank(startRank + i);
+            }
+        }
+
         return PageResult.of(
-                hotEventPage.getContent(),
+                events,
                 hotEventPage.getTotalElements(),
                 page,
                 size
@@ -576,5 +584,71 @@ public class HotEventService {
         }
 
         return saved;
+    }
+
+    @Transactional
+    public int rerankAllSources() {
+        List<String> sources = getAvailableSources();
+        int totalReranked = 0;
+        for (String source : sources) {
+            totalReranked += rerankBySource(source);
+        }
+        log.info("全平台排名重排完成，共重排{}条记录", totalReranked);
+        return totalReranked;
+    }
+
+    @Transactional
+    public int rerankBySource(String source) {
+        if (source == null || source.trim().isEmpty()) {
+            return 0;
+        }
+
+        try {
+            LocalDateTime recentTime = LocalDateTime.now().minusHours(24);
+            List<HotEvent> events = hotEventRepository
+                    .findBySourceAndCrawlTimeAfterOrderByHotValueDesc(source, recentTime);
+
+            if (events == null || events.isEmpty()) {
+                return 0;
+            }
+
+            int count = 0;
+            for (int i = 0; i < events.size(); i++) {
+                HotEvent event = events.get(i);
+                int newRank = i + 1;
+                if (event.getHotRank() == null || event.getHotRank() != newRank) {
+                    event.setHotRank(newRank);
+                    hotEventRepository.save(event);
+                    count++;
+                }
+            }
+            log.info("[排名重排][{}] 重排完成，更新{}条记录", source, count);
+            return count;
+        } catch (Exception e) {
+            log.warn("[排名重排][{}] 重排失败: {}", source, e.getMessage());
+            return 0;
+        }
+    }
+
+    public List<HotEvent> getRankedHotEvents(String source, int limit) {
+        List<HotEvent> events;
+        if (source != null && !source.isEmpty()) {
+            events = hotEventRepository.findBySourceOrderByHotValueDesc(source);
+        } else {
+            events = hotEventRepository.findAll(Sort.by(Sort.Direction.DESC, "hotValue"));
+        }
+
+        if (events == null || events.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        for (int i = 0; i < events.size(); i++) {
+            events.get(i).setHotRank(i + 1);
+        }
+
+        if (limit > 0 && events.size() > limit) {
+            return events.subList(0, limit);
+        }
+        return events;
     }
 }
