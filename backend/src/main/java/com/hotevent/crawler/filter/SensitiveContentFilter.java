@@ -1,6 +1,7 @@
 package com.hotevent.crawler.filter;
 
 import cn.hutool.core.util.StrUtil;
+import com.hotevent.cache.DictionaryCacheService;
 import com.hotevent.crawler.core.DataItem;
 import com.hotevent.entity.HotEvent;
 import com.hotevent.service.SysConfigService;
@@ -20,6 +21,9 @@ public class SensitiveContentFilter {
 
     @Autowired
     private SysConfigService sysConfigService;
+
+    @Autowired
+    private DictionaryCacheService dictionaryCacheService;
 
     private final Map<SensitiveType, Set<String>> keywordMap = new ConcurrentHashMap<>();
     private final Map<SensitiveType, List<Pattern>> regexPatternMap = new ConcurrentHashMap<>();
@@ -45,6 +49,8 @@ public class SensitiveContentFilter {
                 loadTypeKeywords(type);
                 loadTypeRegexPatterns(type);
             }
+
+            warmUpDictionaryCache();
             log.info("敏感词库加载完成，共加载 {} 种类型关键词", keywordMap.size());
         } catch (Exception e) {
             log.error("加载敏感内容过滤配置失败，使用默认配置", e);
@@ -52,7 +58,36 @@ public class SensitiveContentFilter {
         }
     }
 
+    private void warmUpDictionaryCache() {
+        try {
+            for (SensitiveType type : SensitiveType.values()) {
+                Set<String> keywords = keywordMap.get(type);
+                if (keywords != null && !keywords.isEmpty()) {
+                    dictionaryCacheService.cacheSensitiveKeywords(type.getCode(), keywords);
+                }
+                List<Pattern> patterns = regexPatternMap.get(type);
+                if (patterns != null && !patterns.isEmpty()) {
+                    List<String> regexStrings = new ArrayList<>();
+                    for (Pattern p : patterns) {
+                        regexStrings.add(p.pattern());
+                    }
+                    dictionaryCacheService.cacheSensitiveRegex(type.getCode(), regexStrings);
+                }
+            }
+            log.info("[SensitiveFilter] 字典缓存预热完成");
+        } catch (Exception e) {
+            log.warn("[SensitiveFilter] 字典缓存预热失败: {}", e.getMessage());
+        }
+    }
+
     private void loadTypeKeywords(SensitiveType type) {
+        Set<String> cachedKeywords = dictionaryCacheService.getSensitiveKeywords(type.getCode());
+        if (cachedKeywords != null && !cachedKeywords.isEmpty()) {
+            keywordMap.put(type, new HashSet<>(cachedKeywords));
+            log.debug("[SensitiveFilter] 从Redis缓存加载[{}]敏感词{}个", type.getCode(), cachedKeywords.size());
+            return;
+        }
+
         String key = SysConfigService.KEY_SENSITIVE_KEYWORDS_PREFIX + type.getCode();
         String value = sysConfigService.getValue(key, null);
         Set<String> keywords = new HashSet<>();
@@ -93,6 +128,7 @@ public class SensitiveContentFilter {
         }
 
         keywordMap.put(type, keywords);
+        dictionaryCacheService.cacheSensitiveKeywords(type.getCode(), keywords);
     }
 
     private boolean isTooGenericKeyword(SensitiveType type, String keyword) {
@@ -105,6 +141,21 @@ public class SensitiveContentFilter {
     }
 
     private void loadTypeRegexPatterns(SensitiveType type) {
+        List<String> cachedRegex = dictionaryCacheService.getSensitiveRegex(type.getCode());
+        if (cachedRegex != null && !cachedRegex.isEmpty()) {
+            List<Pattern> patterns = new ArrayList<>();
+            for (String regex : cachedRegex) {
+                try {
+                    patterns.add(Pattern.compile(regex, Pattern.CASE_INSENSITIVE));
+                } catch (Exception ignored) {}
+            }
+            if (!patterns.isEmpty()) {
+                regexPatternMap.put(type, patterns);
+                log.debug("[SensitiveFilter] 从Redis缓存加载[{}]正则{}个", type.getCode(), patterns.size());
+                return;
+            }
+        }
+
         String key = SysConfigService.KEY_SENSITIVE_REGEX_PREFIX + type.getCode();
         String value = sysConfigService.getValue(key, null);
         List<Pattern> patterns = new ArrayList<>();
@@ -150,6 +201,7 @@ public class SensitiveContentFilter {
         }
 
         regexPatternMap.put(type, patterns);
+        dictionaryCacheService.cacheSensitiveRegex(type.getCode(), cleanedPatterns);
     }
 
     private boolean isProblematicUrlRegex(String regex) {
@@ -347,5 +399,11 @@ public class SensitiveContentFilter {
             count += keywords.size();
         }
         return count;
+    }
+
+    public synchronized void refreshCache() {
+        dictionaryCacheService.evictAllSensitive();
+        loadConfigFromSysConfig();
+        log.info("[SensitiveFilter] 缓存刷新完成");
     }
 }

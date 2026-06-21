@@ -1,5 +1,7 @@
 package com.hotevent.service;
 
+import com.hotevent.cache.HotEventCacheService;
+import com.hotevent.cache.TranslationCacheService;
 import com.hotevent.common.PageResult;
 import com.hotevent.config.AsyncTaskExecutor;
 import com.hotevent.entity.EventTranslation;
@@ -46,6 +48,12 @@ public class HotEventService {
     @Autowired
     private HotEventLogService hotEventLogService;
 
+    @Autowired
+    private HotEventCacheService hotEventCacheService;
+
+    @Autowired
+    private TranslationCacheService translationCacheService;
+
     private final Map<String, EventTranslation> translationCacheLocal = new ConcurrentHashMap<>();
 
     public PageResult<HotEvent> getHotEventList(String source, String keyword, int page, int size) {
@@ -55,6 +63,12 @@ public class HotEventService {
     public PageResult<HotEvent> getHotEventList(String source, String keyword, String category,
                                                 LocalDateTime startTime, LocalDateTime endTime,
                                                 int page, int size) {
+        PageResult<HotEvent> cached = hotEventCacheService.getEventList(
+                source, keyword, category, startTime, endTime, page, size);
+        if (cached != null) {
+            return cached;
+        }
+
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "hotValue", "id"));
         Specification<HotEvent> spec = buildSearchSpecification(source, keyword, category, startTime, endTime);
         Page<HotEvent> hotEventPage = hotEventRepository.findAll(spec, pageable);
@@ -67,12 +81,15 @@ public class HotEventService {
             }
         }
 
-        return PageResult.of(
+        PageResult<HotEvent> result = PageResult.of(
                 events,
                 hotEventPage.getTotalElements(),
                 page,
                 size
         );
+
+        hotEventCacheService.cacheEventList(source, keyword, category, startTime, endTime, page, size, result);
+        return result;
     }
 
     private Specification<HotEvent> buildSearchSpecification(String source, String keyword, String category,
@@ -156,7 +173,15 @@ public class HotEventService {
     }
 
     public HotEvent getHotEventById(Long id) {
-        return hotEventRepository.findById(id).orElse(null);
+        HotEvent cached = hotEventCacheService.getEventById(id);
+        if (cached != null) {
+            return cached;
+        }
+        HotEvent event = hotEventRepository.findById(id).orElse(null);
+        if (event != null) {
+            hotEventCacheService.cacheEvent(event);
+        }
+        return event;
     }
 
     public Map<String, Object> getHotEventByIdLocalized(Long id, String lang) {
@@ -177,8 +202,13 @@ public class HotEventService {
             return hotEventToMap(event);
         }
 
-        String cacheKey = event.getId() + "_" + targetLang;
-        EventTranslation cachedTranslation = translationCacheLocal.get(cacheKey);
+        EventTranslation cachedTranslation = translationCacheService.getEventTranslation(
+                event.getId(), targetLang);
+
+        if (cachedTranslation == null) {
+            String cacheKey = event.getId() + "_" + targetLang;
+            cachedTranslation = translationCacheLocal.get(cacheKey);
+        }
 
         Optional<EventTranslation> existingTranslation = cachedTranslation != null
                 ? Optional.of(cachedTranslation)
@@ -187,6 +217,8 @@ public class HotEventService {
         if (existingTranslation.isPresent()) {
             EventTranslation translation = existingTranslation.get();
             if (cachedTranslation == null) {
+                translationCacheService.cacheEventTranslation(translation);
+                String cacheKey = event.getId() + "_" + targetLang;
                 translationCacheLocal.put(cacheKey, translation);
             }
             Map<String, Object> map = hotEventToMap(event);
@@ -225,7 +257,11 @@ public class HotEventService {
         }
 
         final String cacheKey = event.getId() + "_" + targetLang;
-        EventTranslation cachedTranslation = translationCacheLocal.get(cacheKey);
+        EventTranslation cachedTranslation = translationCacheService.getEventTranslation(
+                event.getId(), targetLang);
+        if (cachedTranslation == null) {
+            cachedTranslation = translationCacheLocal.get(cacheKey);
+        }
 
         if (cachedTranslation != null) {
             Map<String, Object> map = hotEventToMap(event);
@@ -243,6 +279,7 @@ public class HotEventService {
 
             if (existingTranslation.isPresent()) {
                 EventTranslation translation = existingTranslation.get();
+                translationCacheService.cacheEventTranslation(translation);
                 translationCacheLocal.put(cacheKey, translation);
                 Map<String, Object> map = hotEventToMap(event);
                 if (translation.getTitle() != null) map.put("title", translation.getTitle());
@@ -292,6 +329,7 @@ public class HotEventService {
             translation.setIsVerified(false);
             eventTranslationRepository.save(translation);
 
+            translationCacheService.cacheEventTranslation(translation);
             String cacheKey = event.getId() + "_" + targetLang;
             translationCacheLocal.put(cacheKey, translation);
         } catch (Exception e) {
@@ -318,6 +356,10 @@ public class HotEventService {
         for (String targetLang : i18nProperties.getSupportedLocales()) {
             if ("zh-CN".equals(targetLang)) continue;
 
+            EventTranslation cached = translationCacheService.getEventTranslation(event.getId(), targetLang);
+            if (cached != null) {
+                continue;
+            }
             if (eventTranslationRepository.existsByEventIdAndLanguage(event.getId(), targetLang)) {
                 continue;
             }
@@ -367,14 +409,42 @@ public class HotEventService {
     }
 
     public List<String> getAvailableSources() {
-        return hotEventRepository.findDistinctSources();
+        List<String> cached = hotEventCacheService.getSources();
+        if (cached != null && !cached.isEmpty()) {
+            return cached;
+        }
+        List<String> sources = hotEventRepository.findDistinctSources();
+        if (sources != null && !sources.isEmpty()) {
+            hotEventCacheService.cacheSources(sources);
+        }
+        return sources;
     }
 
     public List<String> getAvailableCategories() {
-        return hotEventRepository.findDistinctCategories();
+        List<String> cached = hotEventCacheService.getCategories();
+        if (cached != null && !cached.isEmpty()) {
+            return cached;
+        }
+        List<String> categories = hotEventRepository.findDistinctCategories();
+        if (categories != null && !categories.isEmpty()) {
+            hotEventCacheService.cacheCategories(categories);
+        }
+        return categories;
     }
 
     public Map<String, Object> getStatistics() {
+        Map<String, Object> cached = hotEventCacheService.getStatistics();
+        if (cached != null && !cached.isEmpty()) {
+            return cached;
+        }
+        Map<String, Object> stats = loadStatistics();
+        if (stats != null && !stats.isEmpty()) {
+            hotEventCacheService.cacheStatistics(stats);
+        }
+        return stats;
+    }
+
+    private Map<String, Object> loadStatistics() {
         Map<String, Object> statistics = new LinkedHashMap<>();
 
         CompletableFuture<List<Object[]>> sourceCountsFuture = CompletableFuture.supplyAsync(
@@ -416,43 +486,16 @@ public class HotEventService {
     }
 
     public CompletableFuture<Map<String, Object>> getStatisticsAsync() {
-        Map<String, Object> statistics = new LinkedHashMap<>();
-
-        CompletableFuture<List<Object[]>> sourceCountsFuture = CompletableFuture.supplyAsync(
-                hotEventRepository::countBySource,
-                asyncTaskExecutor.getIoExecutor()
-        );
-        CompletableFuture<List<Object[]>> categoryCountsFuture = CompletableFuture.supplyAsync(
-                hotEventRepository::countByCategory,
-                asyncTaskExecutor.getIoExecutor()
-        );
-        CompletableFuture<List<HotEvent>> topEventsFuture = CompletableFuture.supplyAsync(() -> {
-            LocalDateTime startTime = LocalDateTime.now().minusHours(24);
-            return hotEventRepository.findTopHotEvents(startTime, PageRequest.of(0, 10));
-        }, asyncTaskExecutor.getIoExecutor());
-
-        return CompletableFuture.allOf(sourceCountsFuture, categoryCountsFuture, topEventsFuture)
-                .thenApply(v -> {
-                    Map<String, Long> sourceStats = new LinkedHashMap<>();
-                    long totalCount = 0;
-                    for (Object[] row : sourceCountsFuture.join()) {
-                        String source = (String) row[0];
-                        Long count = (Long) row[1];
-                        sourceStats.put(source, count);
-                        totalCount += count;
+        Map<String, Object> cached = hotEventCacheService.getStatistics();
+        if (cached != null && !cached.isEmpty()) {
+            return CompletableFuture.completedFuture(cached);
+        }
+        return CompletableFuture.supplyAsync(this::loadStatistics, asyncTaskExecutor.getIoExecutor())
+                .thenApply(stats -> {
+                    if (stats != null && !stats.isEmpty()) {
+                        hotEventCacheService.cacheStatistics(stats);
                     }
-                    statistics.put("sourceStats", sourceStats);
-                    statistics.put("totalCount", totalCount);
-
-                    Map<String, Long> categoryStats = new LinkedHashMap<>();
-                    for (Object[] row : categoryCountsFuture.join()) {
-                        String category = (String) row[0];
-                        Long count = (Long) row[1];
-                        categoryStats.put(category, count);
-                    }
-                    statistics.put("categoryStats", categoryStats);
-                    statistics.put("topEvents", topEventsFuture.join());
-                    return statistics;
+                    return stats;
                 });
     }
 
@@ -467,6 +510,7 @@ public class HotEventService {
             event.setDeleted(true);
             hotEventRepository.save(event);
             hotEventLogService.logDelete(oldEvent, "手动删除热点事件");
+            hotEventCacheService.onEventChanged(id);
             return true;
         }
         return false;
@@ -491,6 +535,8 @@ public class HotEventService {
             log.warn("Auto-translation on save failed for event {}: {}", saved.getId(), ex.getMessage());
             return null;
         });
+
+        hotEventCacheService.onEventChanged(saved.getId());
         return saved;
     }
 
@@ -562,6 +608,7 @@ public class HotEventService {
         }
         EventTranslation saved = eventTranslationRepository.save(translation);
 
+        translationCacheService.cacheEventTranslation(saved);
         String cacheKey = eventId + "_" + language;
         translationCacheLocal.put(cacheKey, saved);
 
@@ -594,6 +641,7 @@ public class HotEventService {
         for (String source : sources) {
             totalReranked += rerankBySource(source);
         }
+        hotEventCacheService.onBatchEventChanged();
         log.info("全平台排名重排完成，共重排{}条记录", totalReranked);
         return totalReranked;
     }
@@ -623,6 +671,7 @@ public class HotEventService {
                     count++;
                 }
             }
+            hotEventCacheService.onBatchEventChanged();
             log.info("[排名重排][{}] 重排完成，更新{}条记录", source, count);
             return count;
         } catch (Exception e) {
@@ -632,6 +681,11 @@ public class HotEventService {
     }
 
     public List<HotEvent> getRankedHotEvents(String source, int limit) {
+        List<HotEvent> cached = hotEventCacheService.getRankedEvents(source, limit);
+        if (cached != null && !cached.isEmpty()) {
+            return cached;
+        }
+
         List<HotEvent> events;
         if (source != null && !source.isEmpty()) {
             events = hotEventRepository.findBySourceOrderByHotValueDesc(source);
@@ -647,9 +701,19 @@ public class HotEventService {
             events.get(i).setHotRank(i + 1);
         }
 
+        List<HotEvent> result;
         if (limit > 0 && events.size() > limit) {
-            return events.subList(0, limit);
+            result = events.subList(0, limit);
+        } else {
+            result = events;
         }
-        return events;
+
+        hotEventCacheService.cacheRankedEvents(source, limit, result);
+        return result;
+    }
+
+    public void onCrawlCompleted() {
+        hotEventCacheService.onBatchEventChanged();
+        log.info("[HotEventCache] 爬虫任务完成，清理列表和统计缓存");
     }
 }

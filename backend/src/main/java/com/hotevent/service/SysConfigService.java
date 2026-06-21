@@ -1,5 +1,6 @@
 package com.hotevent.service;
 
+import com.hotevent.cache.SysConfigCacheService;
 import com.hotevent.entity.SysConfig;
 import com.hotevent.repository.SysConfigRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -37,22 +38,48 @@ public class SysConfigService {
     @Autowired
     private SysConfigRepository sysConfigRepository;
 
+    @Autowired
+    private SysConfigCacheService sysConfigCacheService;
+
     public List<SysConfig> listAll() {
-        return sysConfigRepository.findAll();
+        List<SysConfig> all = sysConfigRepository.findAll();
+        if (all != null && !all.isEmpty()) {
+            sysConfigCacheService.cacheBatch(all);
+        }
+        return all;
     }
 
     public Optional<SysConfig> getByKey(String configKey) {
-        return sysConfigRepository.findByConfigKey(configKey);
+        SysConfig cached = sysConfigCacheService.getByKey(configKey);
+        if (cached != null) {
+            return Optional.of(cached);
+        }
+        Optional<SysConfig> dbResult = sysConfigRepository.findByConfigKey(configKey);
+        dbResult.ifPresent(sysConfigCacheService::cacheConfig);
+        return dbResult;
     }
 
     public String getValue(String configKey, String defaultValue) {
-        return sysConfigRepository.findByConfigKey(configKey)
+        String cachedValue = sysConfigCacheService.getValue(configKey);
+        if (cachedValue != null) {
+            return cachedValue;
+        }
+        String dbValue = sysConfigRepository.findByConfigKey(configKey)
                 .map(SysConfig::getConfigValue)
-                .orElse(defaultValue);
+                .orElse(null);
+        if (dbValue != null) {
+            sysConfigCacheService.cacheConfig(configKey, dbValue, null, null);
+            return dbValue;
+        }
+        return defaultValue;
     }
 
     public int getIntValue(String configKey, int defaultValue) {
         try {
+            String cached = sysConfigCacheService.getValue(configKey);
+            if (cached != null) {
+                return Integer.parseInt(cached);
+            }
             String value = getValue(configKey, null);
             return value != null ? Integer.parseInt(value) : defaultValue;
         } catch (NumberFormatException e) {
@@ -90,6 +117,10 @@ public class SysConfigService {
 
     public boolean getBooleanValue(String configKey, boolean defaultValue) {
         try {
+            String cached = sysConfigCacheService.getValue(configKey);
+            if (cached != null) {
+                return Boolean.parseBoolean(cached);
+            }
             String value = getValue(configKey, null);
             return value != null ? Boolean.parseBoolean(value) : defaultValue;
         } catch (Exception e) {
@@ -121,6 +152,7 @@ public class SysConfigService {
             config.setDescription(description);
         }
         config = sysConfigRepository.save(config);
+        sysConfigCacheService.cacheConfig(config);
         log.info("保存系统配置成功: {}={}", configKey, configValue);
         return config;
     }
@@ -137,6 +169,7 @@ public class SysConfigService {
             config.setDescription(description);
         }
         config = sysConfigRepository.save(config);
+        sysConfigCacheService.cacheConfig(config);
         log.info("更新系统配置成功: {}={}", config.getConfigKey(), configValue);
         return config;
     }
@@ -152,6 +185,7 @@ public class SysConfigService {
         config.setConfigName(configName);
         config.setDescription(description);
         config = sysConfigRepository.save(config);
+        sysConfigCacheService.cacheConfig(config);
         log.info("创建系统配置成功: {}={}", configKey, configValue);
         return config;
     }
@@ -163,8 +197,10 @@ public class SysConfigService {
         if (isSystemConfig(config.getConfigKey())) {
             throw new RuntimeException("系统内置配置不允许删除");
         }
+        String configKey = config.getConfigKey();
         sysConfigRepository.deleteById(id);
-        log.info("删除系统配置成功: key={}", config.getConfigKey());
+        sysConfigCacheService.evictConfig(configKey);
+        log.info("删除系统配置成功: key={}", configKey);
     }
 
     public boolean isSystemConfig(String configKey) {
@@ -214,6 +250,9 @@ public class SysConfigService {
                     "敏感内容过滤开关", "是否启用敏感内容过滤功能，过滤涉政、色情、辱骂、广告等内容");
         }
         initSensitiveKeywordConfigs();
+        log.info("[SysConfig] 初始化系统配置，预热Redis缓存");
+        List<SysConfig> all = sysConfigRepository.findAll();
+        sysConfigCacheService.cacheBatch(all);
     }
 
     private void initSensitiveKeywordConfigs() {
@@ -242,5 +281,12 @@ public class SysConfigService {
                 save(key, cfg[2], cfg[1], "多个正则表达式用 || 分隔");
             }
         }
+    }
+
+    public void refreshCache() {
+        sysConfigCacheService.evictAll();
+        List<SysConfig> all = sysConfigRepository.findAll();
+        sysConfigCacheService.cacheBatch(all);
+        log.info("[SysConfig] 手动刷新Redis缓存完成，共{}条配置", all.size());
     }
 }

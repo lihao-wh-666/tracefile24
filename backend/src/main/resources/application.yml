@@ -12,10 +12,21 @@ spring:
     name: hot-event-detector
   autoconfigure:
     exclude:
-      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
       - org.springframework.boot.autoconfigure.mail.MailSenderAutoConfiguration
       - org.springframework.boot.autoconfigure.mail.MailSenderValidatorAutoConfiguration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      timeout: 5000ms
+      lettuce:
+        pool:
+          max-active: 32
+          max-idle: 16
+          min-idle: 8
+          max-wait: 3000ms
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:hot_event_db}?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&zeroDateTimeBehavior=convertToNull
@@ -254,3 +265,36 @@ hot-event:
     cron: "0 0 2 * * ?"
     batch-size: 1000
     delete-after-archive: true
+
+  cache:
+    enabled: true
+    key-prefix: "hotevent:"
+    null-cache-ttl-seconds: 60
+    stats-enabled: true
+    hot-event:
+      detail-ttl-seconds: 300
+      list-ttl-seconds: 60
+      trending-ttl-seconds: 120
+      stats-ttl-seconds: 300
+      sources-ttl-seconds: 1800
+      categories-ttl-seconds: 1800
+      ranked-ttl-seconds: 120
+      random-ttl-offset-seconds: 30
+    dictionary:
+      ttl-seconds: 86400
+      refresh-interval-seconds: 43200
+    sys-config:
+      ttl-seconds: 3600
+      refresh-on-write: true
+    translation:
+      ttl-seconds: 259200
+    penetration-protection:
+      bloom-filter-enabled: true
+      null-value-cache-enabled: true
+    breakdown-protection:
+      mutex-lock-enabled: true
+      lock-wait-time-ms: 3000
+      lock-lease-time-ms: 60000
+    avalanche-protection:
+      random-offset-enabled: true
+      max-offset-seconds: 300

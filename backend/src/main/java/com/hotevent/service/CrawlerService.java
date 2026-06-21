@@ -123,6 +123,8 @@ public class CrawlerService {
                     log.info("  总失败保存: {}", totalFail);
                     log.info("========================================");
 
+                    hotEventService.onCrawlCompleted();
+
                     Map<String, Object> result = new LinkedHashMap<>();
                     result.put("totalCostTimeMs", globalCostTime);
                     result.put("successSources", successSources);

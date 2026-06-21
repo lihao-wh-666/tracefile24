@@ -97,4 +97,11 @@ public class SysConfigController {
         sysConfigService.delete(id);
         return Result.success("删除成功", null);
     }
+
+    @PostMapping("/cache/refresh")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<String> refreshCache() {
+        sysConfigService.refreshCache();
+        return Result.success("系统配置缓存刷新成功");
+    }
 }
