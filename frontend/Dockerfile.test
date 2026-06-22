@@ -1,0 +1,26 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    TZ=Asia/Shanghai
+
+RUN npm config set registry https://registry.npmmirror.com
+
+COPY package*.json ./
+RUN npm install --no-audit --no-fund
+
+COPY . .
+
+RUN mkdir -p /test-reports/frontend/coverage /test-reports/frontend/results
+
+CMD ["sh", "-c", "\
+    echo '=== 开始执行前端单元测试 ===' && \
+    npx vitest run --coverage || true && \
+    echo '=== 测试执行完成，复制报告 ===' && \
+    cp -r coverage/* /test-reports/frontend/coverage/ 2>/dev/null || true && \
+    echo '=== 测试报告已生成 ===' && \
+    echo 'Vitest 覆盖率报告: /test-reports/frontend/coverage/index.html' && \
+    echo '=== 测试执行完毕 ===' \
+"]

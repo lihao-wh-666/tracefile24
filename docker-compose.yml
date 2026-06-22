@@ -70,6 +70,46 @@ services:
     networks:
       - hot-event-network
 
+  backend-test:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.test
+    image: lh-24-backend-test:latest
+    container_name: hot-event-backend-test
+    profiles:
+      - test
+    volumes:
+      - ./test-reports/backend:/test-reports/backend
+    networks:
+      - hot-event-network
+
+  frontend-test:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.test
+    image: lh-24-frontend-test:latest
+    container_name: hot-event-frontend-test
+    profiles:
+      - test
+    volumes:
+      - ./test-reports/frontend:/test-reports/frontend
+    networks:
+      - hot-event-network
+
+  test-reports:
+    image: nginx:alpine
+    container_name: hot-event-test-reports
+    restart: unless-stopped
+    profiles:
+      - test
+    ports:
+      - "${TEST_REPORTS_PORT:-9070}:80"
+    volumes:
+      - ./test-reports:/usr/share/nginx/html/test-reports:ro
+      - ./docker/test-reports/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - hot-event-network
+
 volumes:
   mysql_data:
 

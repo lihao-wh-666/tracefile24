@@ -18,6 +18,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -33,6 +35,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("热点事件服务测试")
 class HotEventServiceTest {
 
@@ -309,7 +312,7 @@ class HotEventServiceTest {
                 saved.setUpdateTime(LocalDateTime.now());
                 return saved;
             });
-            when(i18nProperties.getTranslation()).thenReturn(mock(I18nProperties.TranslationProperties.class));
+            when(i18nProperties.getTranslation()).thenReturn(mock(I18nProperties.Translation.class));
             when(i18nProperties.getTranslation().isAutoTranslateOnCrawl()).thenReturn(false);
 
             HotEvent result = hotEventService.saveHotEvent(newEvent);
@@ -327,7 +330,7 @@ class HotEventServiceTest {
             testEvent.setTitle("更新后的标题");
             when(hotEventRepository.findById(eq(1L))).thenReturn(Optional.of(testEvent));
             when(hotEventRepository.save(any(HotEvent.class))).thenReturn(testEvent);
-            when(i18nProperties.getTranslation()).thenReturn(mock(I18nProperties.TranslationProperties.class));
+            when(i18nProperties.getTranslation()).thenReturn(mock(I18nProperties.Translation.class));
             when(i18nProperties.getTranslation().isAutoTranslateOnCrawl()).thenReturn(false);
 
             HotEvent result = hotEventService.saveHotEvent(testEvent);

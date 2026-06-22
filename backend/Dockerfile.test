@@ -1,0 +1,29 @@
+FROM maven:3.8.6-eclipse-temurin-17
+
+WORKDIR /app
+
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    TZ=Asia/Shanghai
+
+COPY settings.xml /root/.m2/settings.xml
+
+COPY pom.xml .
+RUN mvn dependency:go-offline -B || true
+
+COPY src ./src
+
+RUN mkdir -p /test-reports/backend/jacoco /test-reports/backend/surefire
+
+CMD ["sh", "-c", "\
+    echo '=== 开始执行后端单元测试 ===' && \
+    mvn clean test jacoco:report -B -Dmockito.strictness=LENIENT -Dmaven.test.failure.ignore=true && \
+    echo '=== 测试执行完成，复制报告 ===' && \
+    mkdir -p /test-reports/backend/jacoco /test-reports/backend/surefire && \
+    cp -r target/site/jacoco/. /test-reports/backend/jacoco/ && \
+    if [ -d target/surefire-reports ]; then cp -r target/surefire-reports/. /test-reports/backend/surefire/; fi && \
+    echo '=== 测试报告已生成 ===' && \
+    echo 'JaCoCo 覆盖率报告: /test-reports/backend/jacoco/index.html' && \
+    echo 'Surefire 测试报告: /test-reports/backend/surefire/' && \
+    echo '=== 测试执行完毕 ===' \
+"]

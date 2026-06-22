@@ -14,6 +14,8 @@
 hs_err_pid*
 replay_pid*
 
+test-reports/*
+
 # Maven
 target/
 pom.xml.tag
@@ -61,3 +63,4 @@ docker-compose.override.yml
 # OS
 .DS_Store
 Thumbs.db
+

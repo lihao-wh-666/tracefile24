@@ -23,4 +23,8 @@ public class UserVO {
     private LocalDateTime lockTime;
     private Boolean locked;
     private LocalDateTime createTime;
+
+    public boolean isLocked() {
+        return Boolean.TRUE.equals(locked);
+    }
 }
